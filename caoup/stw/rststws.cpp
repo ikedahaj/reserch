@@ -525,6 +525,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     file.close();
 }
 
+
 void outv_thetat(double *hist, int counthistv_theta, double tout) {
     char          filename[128];
     double        v_theta = 0.;
