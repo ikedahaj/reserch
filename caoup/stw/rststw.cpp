@@ -11,6 +11,7 @@
 
 #define Np     1000 // 4の倍数であること;NP=4*r^2*lo
 #define Nn     100
+#define lowall 1
 #define R   80.  //固定;
                 //  //R=sqrt(np/4/lo);
 // ,0.1より大きいこと;
@@ -76,8 +77,14 @@ void ini_coord_circle(double (*x)[dim]) {
             break;
     }
 }
-
-
+void setcoord_cirwall(double (*x)[dim]) {
+    double theta = 1. / (R * lowall);
+    double Nwall = 2. * M_PI * R * lowall;
+    for (int i = Np; i < Nwall; i++) {
+        x[i][0] = R * cos(theta * i);
+        x[i][1] = R * sin(theta * i);
+    }
+}
 void set_diameter(double *a) {
     for (int i = 0; i < Np; i++)
         a[i] = 0.5;
@@ -157,9 +164,9 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
             w2=aij*aij/(riw*riw);
             w6=w2*w2*w2;
             w12=w6*w6;
-            dUr=(-48.*w12+24.*w6)/riw;
-            fiw[0]=dUr*x[i][0]/ri;
-            fiw[1]=dUr*x[i][1]/ri;
+            dUr=(-48.*w12+24.*w6)/(riw*ri);
+            fiw[0]=dUr*x[i][0];
+            fiw[1]=dUr*x[i][1];
         }
 ///till here;*/
         F0[0] = F[i][0];
@@ -182,7 +189,7 @@ void ini_hist(double *hist, int Nhist) {
 }
 
 void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
-                      double *hist2) {
+                      double *hist2,double *lohist) {
     // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
     // v_thetaとomegaを算出、histがｖhist2がΩ;
     double v_t, dr,rint=(int)R,rsyou=R-rint,
@@ -195,21 +202,12 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
             histint=(int) floor(abs(dr-rsyou));
             hist[histint] += v_t * bunbo*dr;
             hist2[histint] += v_t * bunbo ;
+            lohist[histint]+=bunbo;
         }
     }
 }
 
-void make_lohist(double (*x)[dim],
-                 double(*hist)) {
-    double v_t, dr, rint = (int) R, rsyou = R - rint,
-                    bunbo = 1. / (ensemble * floor(tmax / dt));
-    int histint;
-    for (int i = 0; i < Np; i++) {
-        dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
-        if (dr < R)
-            hist[(int) floor(abs(dr - rsyou))] += bunbo;
-    }
-}
+
 void make_vt1hist(double (*x)[dim], double (*v)[dim], double(*hist)) {
     // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
     double v_t, dr, rint = (int) R, rsyou = R - rint,
@@ -477,22 +475,17 @@ void auto_list_update(double *disp_max, double (*x)[dim],
     }
 }
 
-void calc_msd(double (*x)[dim], double (*x0)[dim], double *msd, int k) {
-    double dr, bunbo = 1. / (Np * ensemble);
-    for (int i = 0; i < Np; i++) {
-        for (int j = 0; j < dim; j++) {
-            dr = x[i][j] - x0[i][j];
-            msd[k] += dr * dr * bunbo;
-        }
-    }
-}
+
 void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v0)[dim],
-               double (*v)[dim], double *xcor, double *vcor, int k) {
-    double bunbo = 1. / (Np * ensemble);
+               double (*v)[dim], double *xcor, double *vcor, int k,double *msd) {
+    double bunbo = 1. / (Np * ensemble),dr;
     for (int i = 0; i < Np; i++) {
         for (int j = 0; j < dim; j++) {
             xcor[k] += x0[i][j] * x[i][j] * bunbo;
             vcor[k] += v0[i][j] * v[i][j] * bunbo;
+            dr = x[i][j] - x0[i][j];
+            msd[k] += dr * dr * bunbo;
+            
         }
     }
 }
@@ -636,7 +629,7 @@ int main() {
     }
 
     double r2test, r2testmax = 0.;
-    int    ituibi = 0;
+    int    ituibi = 0,tauch=tau/dt,tmaxch=tmax/dt;
     for (int ko = 0; ko < Np; ko++) {
         r2test = x[ko][0] * x[ko][0] + x[ko][1] * x[ko][1];
         if (r2test > r2testmax)
@@ -657,30 +650,27 @@ int main() {
         k = 0;
         kcoord = 0;
 
-        calc_corr(x, x0, v0, v, msd, vcor, kcoord);
+        calc_corr(x, x0, v0, v, msd, vcor, kcoord,msd2);
         t[0] = 0.;
         kcoord++;
 
         out_gosahist(x, v);
         output(j, v, x, k);
-        // outlot(x,k,Nphist,v);
         k++;
-        while (j * dt < tmax) {
+        while (j  < tmaxch) {
             j++;
             auto_list_update(&disp_max, x, x_update, list);
             eom_aoup(v, x, f, a, temp, list, F);
-            make_v_thetahist(x, v, hist, hist2);
-            make_lohist(x, lohist);
+            make_v_thetahist(x, v, hist, hist2,lohist);
 
-            if (j * dt >= toutcoord) {
+            if (j  >= toutcoord) {
                 output(j, v, x, k);
                 outtuibi(x, toutcoord, v, ituibi);
-                toutcoord += tau;
+                toutcoord += tauch;
                 k++;
             }
             if (j * dt >= tout) {
-                calc_corr(x, x0, v0, v, msd, vcor, kcoord);
-                calc_msd(x, x0, msd2, kcoord);
+                calc_corr(x, x0, v0, v, msd, vcor, kcoord,msd2);
                 t[kcoord] = j * dt;
                 kcoord++;
                 tout_update(&tout);
