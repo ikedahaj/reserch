@@ -38,3 +38,5 @@ info.plist
 
 #animation
 *.mp4
+
+*.dSYM*
