@@ -26,7 +26,7 @@
 #define tau      100.
 #define ensemble 1
 // #define polydispersity 0.2 コードも変える;
-#define folder_name "rew93"
+#define folder_name "rew0"
 #define mgn         0.// Omega=omega/tau,ここではomegaを入れること;
 //#define radios 1. //粒径の平均値を変えるときはヒストグラムの変え方も変えること:現在は1;
 // v4:lohistをNpで割らなくした;
@@ -144,7 +144,7 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               double temp0, int (*list)[Nn], double (*F)[dim]) {
     double tauinv = dt / tau;
     double F0[dim],v0[2],fiw[dim],ffw[2],du2;
-    double fluc = sqrt(temp0 / dt);
+    double fluc = sqrt(temp0 / dt),eri;
     //calc_force(x, f, a, list);
     double ri,riw,w2,w6,w12,aij,dUr;
     for (int i = 0; i < Np; i++) {
@@ -158,15 +158,16 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         riw=R+0.5-ri;
         if(riw<cut){
             aij=0.5+a[i];
+
             w2=aij*aij/(riw*riw);
             w6=w2*w2*w2;
             w12=w6*w6;
             dUr=(-48.*w12+24.*w6)/(riw*ri);
             fiw[0]=dUr*x[i][0];
             fiw[1]=dUr*x[i][1];
-            du2=-2./(ri);
-            ffw[0]=du2*x[i][0]*step_funk(F[i][0]);
-            ffw[1]=du2*x[i][1]*step_funk(F[i][1]);
+            du2=-2./(ri*ri);
+            ffw[0]=du2*step_funk(F[i][0]*x[i][0])*x[i][0];
+            ffw[1]=du2*step_funk(x[i][1]*F[i][1])*x[i][1];
         }
 ///till here;*/
         F0[0] = F[i][0];
