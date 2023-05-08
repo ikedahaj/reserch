@@ -207,7 +207,6 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
     }
 }
 
-
 void make_vt1hist(double (*x)[dim], double (*v)[dim], double(*hist)) {
     // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
     double v_t, dr, rint = (int) R, rsyou = R - rint,
