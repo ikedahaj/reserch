@@ -11,7 +11,6 @@
 
 #define Np     1000 // 4の倍数であること;NP=4*r^2*lo
 #define Nn     100
-#define lowall 1
 #define R   80.  //固定;
                 //  //R=sqrt(np/4/lo);
 // ,0.1より大きいこと;
@@ -77,14 +76,8 @@ void ini_coord_circle(double (*x)[dim]) {
             break;
     }
 }
-void setcoord_cirwall(double (*x)[dim]) {
-    double theta = 1. / (R * lowall);
-    double Nwall = 2. * M_PI * R * lowall;
-    for (int i = Np; i < Nwall; i++) {
-        x[i][0] = R * cos(theta * i);
-        x[i][1] = R * sin(theta * i);
-    }
-}
+
+
 void set_diameter(double *a) {
     for (int i = 0; i < Np; i++)
         a[i] = 0.5;
