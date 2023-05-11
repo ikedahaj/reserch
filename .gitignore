@@ -38,6 +38,7 @@ info.plist
 
 #animation
 *.mp4
+*.png
 
 *.dSYM*
 .DS_Store
