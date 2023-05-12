@@ -9,23 +9,24 @@
 
 #include "BM.h"
 
-#define Np     1024 // 4の倍数であること;NP=4*r^2*lo
+#define Np     4096 // 4の倍数であること;NP=4*r^2*lo
 #define Nn     100
 #define R   80.  //固定;
                 //  //R=sqrt(np/4/lo);
 // ,0.1より大きいこと;
-#define tmax     100000 // 973.686//2*100たうとする2*101(たうor(1+mgn^2)/(tau*v0^2));
-#define tmaxlg   5000 // 緩和時間は10たうとする;
+#define tmax     10000 // 973.686//2*100たうとする2*101(たうor(1+mgn^2)/(tau*v0^2));
+#define tmaxlg   500 // 緩和時間は10たうとする;
 #define dt       0.0001
-#define temp     500.         // v0^2=2D/tau,ここではDを入れること;
+#define temp     50.         // v0^2=2D/tau,ここではDを入れること;
 #define dim      2           // 変えるときはEomを変えること;
 #define cut      1.122462048 // 3.
 #define skin     1.5
-#define tau      500.
+#define tau      50.
 #define ensemble 1
 // #define polydispersity 0.2 コードも変える;
-#define folder_name "stws"
-#define mgn        1000.// Omega=omega/tau,ここではomegaを入れること;
+#define folder_name "befs"
+#define mgn       100.// Omega=omega/tau,ここではomegaを入れること;
+#define histbit 0.5
 //#define radios 1. //粒径の平均値を変えるときはヒストグラムの変え方も変えること:現在は1;
 // v4:lohistをNpで割らなくした;
 // v五:ディレクトリ名でRを先にした;
@@ -198,14 +199,14 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
                       double *hist2,double *lohist) {
     // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
     // v_thetaとomegaを算出、histがｖhist2がΩ;
-    double v_t, dr,rint=(int)R,rsyou=R-rint,
+    double v_t, dr,invhistbit=1./histbit,
                     bunbo = 1. / ( ensemble * floor(tmax / dt));
     int histint;
     for (int i = 0; i < Np; i++) {
         dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
         v_t = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / (dr*dr);
         if (dr < R) {
-            histint=(int) floor(abs(dr-rsyou));
+            histint=(int) floor(dr*invhistbit);
             hist[histint] += v_t * bunbo*dr;
             hist2[histint] += v_t * bunbo ;
             lohist[histint]+=bunbo;
@@ -345,7 +346,7 @@ void out_setup() {
     file << "ens=" << ensemble << std::endl;
     file << "type=" << 2 << std::endl;
     file<<"2DkaraD"<<std::endl;
-    file<<"壁はWCA"<<std::endl;
+    file<<""<<std::endl;
     file.close();
 }
 
@@ -353,8 +354,8 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
                 double *hist2) {
     char          filename[128];
     double        v_theta = 0.;
-    double        bitthist = 1.;
-    int Nphist = (int) (R  + 1.);
+    double        bitthist = histbit;
+    int Nphist = (int) (R /bitthist + 1.);
      double Mgn = mgn / tau,
         v0 = temp / tau;
         double rsyou=R-(int)R;
@@ -366,19 +367,19 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     file.open(filename /*,std::ios::app*/); // append
     
     if (lohist[0] != 0.) {
-        file << ( rsyou + 1.)*0.5 << "\t" << (hist[0] / lohist[0]) << std::endl;
+        file << ( rsyou + bitthist)*0.5 << "\t" << (hist[0] / lohist[0]) << std::endl;
 
         v_theta += hist[0] / Np;
     } else {
-        file << (rsyou + 1.) * 0.5 << "\t" << 0 << std::endl;
+        file << (rsyou + bitthist) * 0.5 << "\t" << 0 << std::endl;
     }
     for (int i = 1; i < Nphist; i++) {
         if (lohist[i] != 0.) {
-            file << i +rsyou+0.5 << "\t" << (hist[i] / lohist[i]) << std::endl;
+            file << rsyou+(i +0.5)*bitthist << "\t" << (hist[i] / lohist[i]) << std::endl;
 
             v_theta += hist[i] /Np;
         } else {
-            file << i +rsyou+0.5 << "\t" << 0 << std::endl;
+            file << rsyou+(i+0.5)*bitthist << "\t" << 0 << std::endl;
         }
     }
     file.close();
@@ -399,18 +400,18 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     file.open(filename /*,std::ios::app*/); // append
     
     if (lohist[0] != 0.) {
-        file << (rsyou + 1.) * 0.5 << "\t" << (hist2[0] / lohist[0])
+        file << (rsyou + bitthist) * 0.5 << "\t" << (hist2[0] / lohist[0])
              << std::endl;
 
     } else {
-        file << (rsyou + 1.) * 0.5 << "\t" << 0 << std::endl;
+        file << (rsyou + bitthist) * 0.5 << "\t" << 0 << std::endl;
     }
     for (int i = 1; i < Nphist; i++) {
         if (lohist[i] != 0.) {
-            file << i +rsyou+0.5 << "\t" << (hist2[i] / lohist[i]) << std::endl;
+            file <<rsyou+( i +0.5)*bitthist << "\t" << (hist2[i] / lohist[i]) << std::endl;
 
         } else {
-            file << i +rsyou+0.5 << "\t" << 0 << std::endl;
+            file <<bitthist*( i +0.5 )<< "\t" << 0 << std::endl;
         }
     }
     file.close();
@@ -419,11 +420,11 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
             folder_name, Np * 0.25 / (R * R), v0, tau, Mgn, Np * 0.25 / (R * R),
             tau, Mgn);
     file.open(filename /*,std::ios::app*/); // append
-    file << (rsyou + 1.) * 0.5 << "\t" << (lohist[0] / (4. * (rsyou + 1.)))
+    file << (rsyou + bitthist) * 0.5 << "\t" << (lohist[0] / (M_PI * (rsyou + bitthist)*(rsyou+bitthist)))
          << std::endl;
     for (int i = 1; i < Nphist; i++) {
-        file << i + 0.5 +rsyou<< "\t"
-             << (lohist[i] / (8. * (i + 0.5+rsyou))) << std::endl;
+        file << bitthist*(i + 0.5 )+rsyou<< "\t"
+             << (lohist[i] / (M_PI * bitthist*(2.*(i*bitthist +rsyou)+bitthist))) << std::endl;
     }
     file.close();
 }
@@ -575,7 +576,7 @@ int main() {
         F[Np][dim], x0[Np][dim],v0[Np][dim];
     int    list[Np][Nn];
     int    counthistv_theta = 0, countout = 0;
-    int    Nphist = (int) (R + 1.);
+    int    Nphist = (int) (R/histbit + 1.);
     double hist[Nphist], lohist[Nphist], hist2[Nphist];
     double tout = 0.01, toutcoord = 0, U, disp_max = 0.0;
 
@@ -681,7 +682,7 @@ int main() {
                 t[kcoord] = j * dt;
                 kcoord++;
                 tout_update(&tout);
-                // std::cout<<k;
+           
             }
         }
     }
