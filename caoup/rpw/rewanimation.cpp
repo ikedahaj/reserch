@@ -26,7 +26,7 @@
 #define tau      100.
 #define ensemble 1
 // #define polydispersity 0.2 コードも変える;
-#define folder_name "rew01"
+#define folder_name "rew02"
 #define mgn         0.// Omega=omega/tau,ここではomegaを入れること;
 //#define radios 1. //粒径の平均値を変えるときはヒストグラムの変え方も変えること:現在は1;
 // v4:lohistをNpで割らなくした;
@@ -165,7 +165,7 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
             dUr=(-48.*w12+24.*w6)/(riw*ri);
             fiw[0]=dUr*x[i][0];
             fiw[1]=dUr*x[i][1];
-            du2=-2.*w6/(ri*ri);
+            du2=-6.*w6/(ri*ri);
             ffw[0]=du2*F[i][0]*x[i][0]*x[i][0];
             ffw[1]=du2*x[i][1]*F[i][1]*x[i][1];
         }
