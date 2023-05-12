@@ -205,8 +205,8 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
     for (int i = 0; i < Np; i++) {
         dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
         v_t = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / (dr*dr);
-        if (dr < R) {
-            histint=(int) floor(dr*invhistbit);
+        if (dr < R&&dr!=0) {
+            histint=(int) ceil(dr*invhistbit)-1;
             hist[histint] += v_t * bunbo*dr;
             hist2[histint] += v_t * bunbo ;
             lohist[histint]+=bunbo;
