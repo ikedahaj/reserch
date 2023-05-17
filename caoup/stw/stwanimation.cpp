@@ -16,13 +16,13 @@ using std::max;
 using std::min;
 using std::ofstream;
 
-#define Np 12800 // 8192// 4096// 4の倍数であること;
-#define Nn 1000
-#define R 80. //  //R=sqrt(np/4/lo);
+#define Np 120 // 8192// 4096// 4の倍数であること;
+#define Nn 50
+#define R  10. //  //R=sqrt(np/4/lo);
 // ,0.1より大きいこと;
-#define M 31       // R/(cut+skin);
-#define tmax 500   // 適当;
-#define tmaxlg 500 // 緩和時間は10たうとする;
+#define M 7//61       // <=2R/(cut+skin);
+#define tmax 100   // 適当;
+#define tmaxlg 100 // 緩和時間は10たうとする;
 #define tbit 1.    // ファイルを出すときの間隔;
 #define dtlg 0.0001
 #define dt 0.0001
@@ -33,7 +33,7 @@ using std::ofstream;
 #define tau 10.
 #define ensemble 1
 // #define polydispersity 0.2 コードも変える;
-#define folder_name "stwr80"
+#define folder_name "test"
 #define mgn 0. // Omega=omega/tau,ここではomegaを入れること;
 // #define radios 1.
 // //粒径の平均値を変えるときはヒストグラムの変え方も変えること:現在は1;
@@ -213,11 +213,11 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
             map[i + M * j][0] = 0;
 
     for(i = 0; i < Np; i++) {
-        nx = (int)(x[i][0] * bit);
-        ny = (int)(x[i][1] * bit);
+        nx = (int)((x[i][0]+R) * bit);
+        ny = (int)((x[i][1]+R) * bit);
 
-        for(m = max(ny - 1, 0), mm = min(ny + 1, M); m <= mm; ++m) {
-            for(l = max(nx - 1, 0), lm = min(nx + 1, M); l <= lm; ++l) {
+        for(m = max(ny - 1, 0), mm = min(ny + 1, M-1); m <= mm; ++m) {
+            for(l = max(nx - 1, 0), lm = min(nx + 1, M-1); l <= lm; ++l) {
                 map_index = l + M * m;
                 map[map_index][map[map_index][0] + 1] = i;
                 map[map_index][0]++;
@@ -227,8 +227,8 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
 
     for(i = 0; i < Np; ++i) {
         list[i][0] = 0;
-        nx = (int)(x[i][0] * bit);
-        ny = (int)(x[i][1] * bit);
+        nx = (int)((x[i][0]+R) * bit);
+        ny = (int)((x[i][1]+R) * bit);
 
         for(k = 1; k <= (map[nx + M * ny][0]); ++k) {
             j = map[nx + M * ny][k];
