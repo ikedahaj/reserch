@@ -10,24 +10,23 @@
 #include "BM.h"
 
 #define Np     12800 // 8192// 4096// 4の倍数であること;
-#define Nn     5000
-#define R   80.  //50.//28.86751346//  32.//64.//128.// lo=0.5,N1000//3.
-                //  //R=sqrt(np/4/lo);
+#define Nn     1000
+#define R   80.   //  //R=sqrt(np/4/lo);
 // ,0.1より大きいこと;
-#define tmax     1000 // 適当;
+#define tmax     500 // 適当;
 #define tmaxlg   500 // 緩和時間は10たうとする;
 #define tbit 1.//ファイルを出すときの間隔;
 #define dtlg     0.0001
 #define dt       0.0001
-#define temp     50.         // v0^2=2D/tau,ここではDを入れること;
+#define temp     10.         // v0^2=2D/tau,ここではDを入れること;
 #define dim      2           // 変えるときはEomを変えること;
 #define cut      1.122462048 // 3.
 #define skin     1.5
-#define tau      50.
+#define tau      10.
 #define ensemble 1
 // #define polydispersity 0.2 コードも変える;
-#define folder_name "stww"
-#define mgn         1.// Omega=omega/tau,ここではomegaを入れること;
+#define folder_name "stwr80"
+#define mgn         0.// Omega=omega/tau,ここではomegaを入れること;
 //#define radios 1. //粒径の平均値を変えるときはヒストグラムの変え方も変えること:現在は1;
 // v4:lohistをNpで割らなくした;
 // v五:ディレクトリ名でRを先にした;
@@ -156,9 +155,9 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
             w2=aij*aij/(riw*riw);
             w6=w2*w2*w2;
             w12=w6*w6;
-            dUr=(-48.*w12+24.*w6)/riw;
-            fiw[i][0]=dUr*x[i][0]/ri;
-            fiw[i][1]=dUr*x[i][1]/ri;
+            dUr=(-48.*w12+24.*w6)/(ri*riw);
+            fiw[i][0]=dUr*x[i][0];
+            fiw[i][1]=dUr*x[i][1];
         }
 ///till here;*/
         F0[0] = F[i][0];
@@ -192,7 +191,7 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
             folder_name, Np * 0.25 / (R * R), temp / tau, tau, Mgn,
             Np * 0.25 / (R * R), tau, Mgn, l);
-    file.open(filename, std::ios::app); // append
+    file.open(filename/* std::ios::app*/); // append
     for (int i = 0; i < Np; i++) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
              << "\t" << v[i][1]  << std::endl;
@@ -312,7 +311,7 @@ double tmaxch=tmax/dt,tbitch=tbit/dt;
             eom_aoup(v, x, f, a, temp, list, F);
 
             if (j  >= toutcoord) {
-                output(j, F, x, k);
+                output(j, v, x, k);
                 toutcoord += tbitch;
                 k++;
             }
