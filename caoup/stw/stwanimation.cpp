@@ -97,7 +97,7 @@ void ini_array(double (*x)[dim]) {
 
 void calc_force(double (*x)[dim], double (*f)[dim], double *a,
                 int (*list)[Nn]) {
-    double dx, dy, dr2, dUr, w2, w6, w12, aij;
+    double dx, dy, dr2, dUr, w2, w6, /*w12,*/ aij;
     ini_array(f);
 
     for(int i = 0; i < Np; ++i)
@@ -110,8 +110,8 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
                 aij = (a[i] + a[list[i][j]]);
                 w2 = aij * aij / dr2;
                 w6 = w2 * w2 * w2;
-                w12 = w6 * w6;
-                dUr = (-48. * w12 + 24. * w6) / dr2 /* -12. * w12 / dr2*/;
+                // w12 = w6 * w6;
+                dUr = (-48. * w6 + 24. )*w6 / dr2 ;
                 f[i][0] -= dUr * dx;
                 f[list[i][j]][0] += dUr * dx;
                 f[i][1] -= dUr * dy;
@@ -126,7 +126,7 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     double F0[dim], v0[2], fiw[Np][dim];
     double fluc = sqrt(temp0 / dt);
     calc_force(x, f, a, list);
-    double ri, riw, w2, w6, w12, aij, dUr;
+    double ri, riw, w2, w6,  aij, dUr;
     for(int i = 0; i < Np; ++i) {
         fiw[i][0] = 0.;
         fiw[i][1] = 0.;
@@ -138,8 +138,7 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
             aij = 0.5 + a[i];
             w2 = aij * aij / (riw * riw);
             w6 = w2 * w2 * w2;
-            w12 = w6 * w6;
-            dUr = (-48. * w12 + 24. * w6) / (ri * riw);
+            dUr = (-48. * w6 + 24. )*w6 / (ri * riw);
             fiw[i][0] = dUr * x[i][0];
             fiw[i][1] = dUr * x[i][1];
         }
