@@ -167,14 +167,14 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
                       double *hist2,double *lohist) {
     // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
     // v_thetaとomegaを算出、histがｖhist2がΩ;
-    double v_t, dr,rint=(int)R,rsyou=R-rint,
+    double v_t, dr,
                     bunbo = 1. / ( ensemble * floor(tmax / dt));
     int histint;
     for (int i = 0; i < Np; ++i) {
         dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
         v_t = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / (dr*dr);
         if (dr < R) {
-            histint=(int) floor(abs(dr-rsyou));
+            histint=(int) dr;
             hist[histint] += v_t * bunbo*dr;
             hist2[histint] += v_t * bunbo ;
             lohist[histint]+=bunbo;
@@ -554,7 +554,6 @@ int main() {
     ini_hist(hist, Nphist);
     ini_hist(lohist, Nphist);
     ini_hist(hist2, Nphist);
-    // ini_test(x,v);
     double Mgn = mgn / tau;
     char   foldername[128];
     sprintf(foldername, "%slo%.2fv0%.1ftau%.3fm%.3f", folder_name,
@@ -567,7 +566,7 @@ int main() {
     const char *fname2 = foldername2;
     mkdir(fname2, 0777);
     out_setup();
-    
+    std::cout<<foldername<<endl;
     while (tout  < tmax) {
 
             tout_update(&tout);
@@ -647,7 +646,6 @@ int main() {
                 t[kcoord] = j * dt;
                 kcoord++;
                 tout_update(&tout);
-                // std::cout<<k;
             }
         }
     }
