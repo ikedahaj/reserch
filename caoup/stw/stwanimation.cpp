@@ -50,7 +50,7 @@ void ini_coord_circle(double (*x)[dim]) {
     int i, j, k = 0;
     x[0][0] = 0.;
     x[0][1] = 0.;
-    for(j = 1; j < num_max; j++) {
+    for(j = 1; j < num_max; ++j) {
         x[k][0] = j * bitween;
         x[k][1] = 0.;
         x[k + n025][0] = -j * bitween;
@@ -59,10 +59,10 @@ void ini_coord_circle(double (*x)[dim]) {
         x[k + n025 * 2][1] = j * bitween;
         x[k + n025 * 3][0] = 0.;
         x[k + n025 * 3][1] = -j * bitween;
-        k++;
+        ++k;
     }
-    for(j = 1; j < num_max; j++) {
-        for(i = 1; i < num_max; i++) {
+    for(j = 1; j < num_max; ++j) {
+        for(i = 1; i < num_max; ++i) {
             if(i * bitween * i * bitween + j * j * bitween * bitween <
                R2 * R2) {
                 x[k][0] = i * bitween;
@@ -73,7 +73,7 @@ void ini_coord_circle(double (*x)[dim]) {
                 x[k + 2 * n025][1] = -j * bitween;
                 x[k + 3 * n025][0] = i * bitween;
                 x[k + 3 * n025][1] = -j * bitween;
-                k++;
+                ++k;
                 if(k >= Np * 0.25)
                     break;
             } else {
@@ -85,13 +85,13 @@ void ini_coord_circle(double (*x)[dim]) {
     }
 }
 void set_diameter(double *a) {
-    for(int i = 0; i < Np; i++)
+    for(int i = 0; i < Np; ++i)
         a[i] = 0.5;
 }
 
 void ini_array(double (*x)[dim]) {
-    for(int i = 0; i < Np; i++)
-        for(int j = 0; j < dim; j++)
+    for(int i = 0; i < Np; ++i)
+        for(int j = 0; j < dim; ++j)
             x[i][j] = 0.0;
 }
 
@@ -100,8 +100,8 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
     double dx, dy, dr2, dUr, w2, w6, w12, aij;
     ini_array(f);
 
-    for(int i = 0; i < Np; i++)
-        for(int j = 1; j <= list[i][0]; j++) {
+    for(int i = 0; i < Np; ++i)
+        for(int j = 1; j <= list[i][0]; ++j) {
             dx = x[i][0] - x[list[i][j]][0];
             dy = x[i][1] - x[list[i][j]][1];
 
@@ -127,7 +127,7 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     double fluc = sqrt(temp0 / dt);
     calc_force(x, f, a, list);
     double ri, riw, w2, w6, w12, aij, dUr;
-    for(int i = 0; i < Np; i++) {
+    for(int i = 0; i < Np; ++i) {
         fiw[i][0] = 0.;
         fiw[i][1] = 0.;
         ////*force bitween wall;
@@ -157,7 +157,7 @@ void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 }
 
 void ini_hist(double *hist, int Nhist) {
-    for(int i = 0; i < Nhist; i++) {
+    for(int i = 0; i < Nhist; ++i) {
         hist[i] = 0.;
     }
 }
@@ -172,7 +172,7 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
             folder_name, Np * 0.25 / (R * R), temp / tau, tau, Mgn,
             Np * 0.25 / (R * R), tau, Mgn, l);
     file.open(filename /* std::ios::app*/); // append
-    for(int i = 0; i < Np; i++) {
+    for(int i = 0; i < Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
              << "\t" << v[i][1] << endl;
     }
@@ -201,8 +201,8 @@ void out_setup() {
 }
 void cell_list(int (*list)[Nn], double (*x)[dim]) {
     int i, j, k;
-    int nx, ny;
-    int l, m, lm, mm, map_index;
+    int nx[Np][2];
+    int l, m, lm, mm, map_index,km;
     double dx, dy, r2;
     double thresh2 = (cut + skin) * (cut + skin), bit = M / (2. * R);
 
@@ -212,12 +212,12 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
         for(j = 0; j < M; ++j)
             map[i + M * j][0] = 0;
 
-    for(i = 0; i < Np; i++) {
-        nx = (int)((x[i][0]+R) * bit);
-        ny = (int)((x[i][1]+R) * bit);
+    for(i = 0; i < Np; ++i) {
+        nx[i][0] = (int)((x[i][0]+R) * bit);
+        nx[i][1] = (int)((x[i][1]+R) * bit);
 
-        for(m = max(ny - 1, 0), mm = min(ny + 1, M-1); m <= mm; ++m) {
-            for(l = max(nx - 1, 0), lm = min(nx + 1, M-1); l <= lm; ++l) {
+        for(m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, M-1); m <= mm; ++m) {
+            for(l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, M-1); l <= lm; ++l) {
                 map_index = l + M * m;
                 map[map_index][map[map_index][0] + 1] = i;
                 map[map_index][0]++;
@@ -227,11 +227,11 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
 
     for(i = 0; i < Np; ++i) {
         list[i][0] = 0;
-        nx = (int)((x[i][0]+R) * bit);
-        ny = (int)((x[i][1]+R) * bit);
-
-        for(k = 1; k <= (map[nx + M * ny][0]); ++k) {
-            j = map[nx + M * ny][k];
+        // nx = (int)((x[i][0]+R) * bit);
+        // ny = (int)((x[i][1]+R) * bit);
+        map_index=nx[i][0]+M*nx[i][1];
+        for(k = 1,km=(map[map_index][0]); k <= km; ++k) {
+            j = map[map_index][k];
             if(j > i) {
                 dx = x[i][0] - x[j][0];
                 dy = x[i][1] - x[j][1];
@@ -252,11 +252,11 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
 }
 
 int main() {
-    double x[Np][dim], x_update[Np][dim], v[Np][dim], f[Np][dim], a[Np],
+    double x[Np][dim], v[Np][dim], f[Np][dim], a[Np],
         F[Np][dim], x0[Np][dim], v0[Np][dim];
     int list[Np][Nn];
     int counthistv_theta = 0, countout = 0;
-    double tout = 0.01, toutcoord = 0, U, disp_max = 0.0;
+    double tout = 0.01, toutcoord = 0, U;
 
     int j = 0, k = 0, kcoord = 0;
     set_diameter(a);
@@ -279,14 +279,14 @@ int main() {
         ttemp = 5. * tau;
     j = 0;
     while(j * dtlg < 10) {
-        j++;
+        ++j;
         cell_list(list, x);
         eom_aoup(v, x, f, a, ttemp, list, F);
     }
 
     j = 0;
     while(j * dt < tmaxlg) {
-        j++;
+        ++j;
         cell_list(list, x);
         eom_aoup(v, x, f, a, temp, list, F);
     }
@@ -299,22 +299,22 @@ int main() {
         toutcoord = 0.;
         k = 0;
         output(j, v, x, k);
-        k++;
+        ++k;
         while(j < tmaxch) {
-            j++;
+            ++j;
             cell_list(list, x);
             eom_aoup(v, x, f, a, temp, list, F);
 
             if(j >= toutcoord) {
                 output(j, v, x, k);
                 toutcoord += tbitch;
-                k++;
+                ++k;
             }
         }
     }
 
     int counthazure = 0;
-    for(int i = 0; i < Np; i++) {
+    for(int i = 0; i < Np; ++i) {
         if(x[i][0] * x[i][0] + x[i][1] * x[i][1] > R * R)
             counthazure++;
     }
