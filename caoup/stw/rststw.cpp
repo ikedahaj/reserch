@@ -26,8 +26,8 @@
 #define ensemble 1
 // #define polydispersity 0.2 コードも変える;
 #define folder_name "stwne4"
-#define msdbit 1.1
-#define msdini 0.01
+#define msdbit      1.1
+#define msdini      0.01
 
 using std::endl;
 using std::max;
@@ -309,6 +309,7 @@ void out_setup() {
     file << "type=" << 2 << endl;
     file << "2DkaraD" << endl;
     file << "壁はWCA" << endl;
+    file << "cell list" << endl;
     file.close();
 }
 
@@ -510,7 +511,7 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
                 // dx-=L*floor((dx+0.5*L)/L);
                 // dy-=L*floor((dy+0.5*L)/L);
 
-                if ((dx * dx + dy * dy)< thresh2) {
+                if ((dx * dx + dy * dy) < thresh2) {
                     list[i][0]++;
                     list[i][list[i][0]] = j;
                 }
@@ -555,7 +556,7 @@ void auto_list_update(double *disp_max, double (*x)[dim],
 
 int main() {
     double x[Np][dim], v[Np][dim], f[Np][dim], a[Np], F[Np][dim], x0[Np][dim],
-        v0[Np][dim],x_update[Np][dim],disp_max=0. ;
+        v0[Np][dim], x_update[Np][dim], disp_max = 0.;
     int    list[Np][Nn];
     int    counthistv_theta = 0, countout = 0;
     int    Nphist = (int) (R + 1.);
@@ -586,7 +587,7 @@ int main() {
     std::cout << foldername << endl;
     while (tout < tmax) {
 
-        tout*=msdbit;
+        tout *= msdbit;
 
         countout++;
     }
@@ -602,18 +603,18 @@ int main() {
     if (ttemp / tau < 5)
         ttemp = 5. * tau;
     j = 0;
-    int tmaxbefch=10/dt;
-    while (j  < tmaxbefch) {
+    int tmaxbefch = 10 / dt;
+    while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max,x,x_update,list);
+        auto_list_update(&disp_max, x, x_update, list);
         eom_aoup(v, x, f, a, ttemp, list, F);
     }
 
     j = 0;
-    tmaxbefch=tmaxlg/dt;
-    while (j  < tmaxbefch) {
+    tmaxbefch = tmaxlg / dt;
+    while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max,x,x_update,list);
+        auto_list_update(&disp_max, x, x_update, list);
         eom_aoup(v, x, f, a, temp, list, F);
     }
 
@@ -634,7 +635,7 @@ int main() {
             }
         }
         j = 0;
-        tout = msdini/dt;
+        tout = msdini / dt;
         toutcoord = 0.;
         k = 0;
         kcoord = 0;
@@ -648,7 +649,7 @@ int main() {
         ++k;
         while (j < tmaxch) {
             ++j;
-            auto_list_update(&disp_max,x,x_update,list);
+            auto_list_update(&disp_max, x, x_update, list);
             eom_aoup(v, x, f, a, temp, list, F);
             make_v_thetahist(x, v, hist, hist2, lohist);
 
@@ -658,11 +659,11 @@ int main() {
                 toutcoord += tauch;
                 ++k;
             }
-            if (j  >= tout) {
+            if (j >= tout) {
                 calc_corr(x, x0, v0, v, msd, vcor, kcoord, msd2);
                 t[kcoord] = j * dt;
                 kcoord++;
-                tout*=msdbit;
+                tout *= msdbit;
             }
         }
     }
