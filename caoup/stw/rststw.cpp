@@ -602,14 +602,16 @@ int main() {
     if (ttemp / tau < 5)
         ttemp = 5. * tau;
     j = 0;
-    while (j * dtlg < 10) {
+    int tmaxbefch=10/dt;
+    while (j  < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max,x,x_update,list);
         eom_aoup(v, x, f, a, ttemp, list, F);
     }
 
     j = 0;
-    while (j * dt < tmaxlg) {
+    tmaxbefch=tmaxlg/dt;
+    while (j  < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max,x,x_update,list);
         eom_aoup(v, x, f, a, temp, list, F);
