@@ -256,37 +256,37 @@ void update(double (*x_update)[dim], double (*x)[dim]) {
             x_update[i][j] = x[i][j];
 }
 
-void calc_disp_max(double *disp_max, double (*x)[dim],
+double calc_disp_max( double (*x)[dim],
                    double (*x_update)[dim]) {
     double dx, dy;
-    double disp;
+    double disp,disp_max=0.;
     for (int i = 0; i < Np; i++) {
         dx = x[i][0] - x_update[i][0];
         dy = x[i][1] - x_update[i][1];
 
         disp = dx * dx + dy * dy;
-        if (disp > *disp_max)
-            *disp_max = disp;
+        if (disp > disp_max)
+            disp_max = disp;
     }
+    return disp_max;
 }
 
-void auto_list_update(double *disp_max, double (*x)[dim],
+void auto_list_update( double (*x)[dim],
                       double (*x_update)[dim], int (*list)[Nn]) {
-    static int count = 0;
-    count++;
-    calc_disp_max(&(*disp_max), x, x_update);
-    if (*disp_max > skin * skin * 0.25) {
+    // static int count = 0;
+    // count++;
+    
+    if (calc_disp_max( x, x_update) > skin * skin * 0.25) {
         cell_list(list, x);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
-        *disp_max = 0.0;
-        count = 0;
+        // count = 0;
     }
 }
 
 int main() {
     double x[Np][dim], v[Np][dim], f[Np][dim], a[Np], F[Np][dim], x0[Np][dim],
-        v0[Np][dim], disp_max = 0.0, x_update[Np][dim];
+        v0[Np][dim], x_update[Np][dim];
     int    list[Np][Nn];
     int    counthistv_theta = 0, countout = 0;
     double tout = 0.01, toutcoord = 0, U;
@@ -305,7 +305,7 @@ int main() {
     const char *fname = foldername;
     mkdir(fname, 0777);
     out_setup();
-
+    cout << foldername << endl;
     j = 0;
     double ttemp = 5. * temp;
     if (ttemp / tau < 5)
@@ -314,7 +314,7 @@ int main() {
     double tmaxlgch = 10 / dt;
     while (j < tmaxlgch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        auto_list_update( x, x_update, list);
         eom_aoup(v, x, f, a, ttemp, list, F);
     }
 
@@ -322,7 +322,7 @@ int main() {
     tmaxlgch = tmaxlg / dt;
     while (j < tmaxlgch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        auto_list_update( x, x_update, list);
         eom_aoup(v, x, f, a, temp, list, F);
     }
 
@@ -337,7 +337,7 @@ int main() {
         ++k;
         while (j < tmaxch) {
             ++j;
-            auto_list_update(&disp_max, x, x_update, list);
+            auto_list_update( x, x_update, list);
             eom_aoup(v, x, f, a, temp, list, F);
 
             if (j >= toutcoord) {
