@@ -5,11 +5,11 @@ double unif_rand(double left, double right)
 
 double gaussian_rand(void)
 {
-  static double iset = 0;
+  static bool iset = true;
   static double gset;
   double fac, rsq, v1, v2;
 
-  if (iset == 0) {
+  if (iset ) {
     do {
       v1 = unif_rand(-1, 1);
       v2 = unif_rand(-1, 1);
@@ -18,10 +18,10 @@ double gaussian_rand(void)
     fac = sqrt(-2.0*log(rsq)/rsq);
 
     gset = v1*fac;
-    iset = 0.50;
+    iset = false;
     return v2*fac;
   } else {
-    iset = 0;
+    iset = true;
     return gset;
   }
 }
