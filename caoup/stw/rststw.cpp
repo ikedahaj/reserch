@@ -9,27 +9,26 @@
 
 #include "BM.h"
 
-#define Np      12 // 4の倍数であること;NP=4*r^2*lo
-#define Nn      10
-#define R       80. // 固定;// ,0.1より大きいこと;
-#define M       61  // M<=2R/(cut+skin)
-#define tmax    16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg  800 // 緩和時間は10たうとする;
-#define temp    80. // v0^2=2D/tau,ここではDを入れること;
-#define tau     80.
-#define mgn     0.08 // Omega=omega/tau,ここではomegaを入れること;
-#define tmaxani 500  //>tmaxの時プログラムを変更すること;
-#define tbitani 1
-#define dim     2           // 変えるときはEomを変えること;
-#define cut     1.122462048 // 3.
-#define skin    1.5
-#define dtlg    0.0001
-#define dt      0.0001
-// #define polydispersity 0.2 コードも変える;
+#define Np          12800 // 4の倍数であること;NP=4*r^2*lo
+#define Nn          5000
+#define R           80. // 固定;// ,0.1より大きいこと;
+#define M           61  // M<=2R/(cut+skin)
+#define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      800 // 緩和時間は10たうとする;
+#define temp        80. // v0^2=2D/tau,ここではDを入れること;
+#define tau         80.
+#define mgn         0.08 // Omega=omega/tau,ここではomegaを入れること;
+#define tmaxani     500  //>tmaxの時プログラムを変更すること;
+#define tbitani     1
+#define dim         2           // 変えるときはEomを変えること;
+#define cut         1.122462048 // 3.
+#define skin        1.5
+#define dtlg        0.0001
+#define dt          0.0001
 #define folder_name "stwr80"
 #define msdbit      1.1
 #define msdini      0.01
-
+// #define polydispersity 0.2 コードも変える;
 using std::endl;
 using std::max;
 using std::min;
@@ -655,7 +654,7 @@ int main() {
     k = 0;
     kcoord = 0;
     int kani = 0;
-    int kanit=0;
+    int kanit = 0;
 
     calc_corr(x, x0, v0, v, msd, vcor, kcoord, msd2);
     t[0] = 0.;
@@ -672,7 +671,7 @@ int main() {
         if (j >= kanit) {
             output_ani(j, v, x, kani);
             ++kani;
-            kanit+=tanibitch;
+            kanit += tanibitch;
             if (j >= toutcoord) {
                 output(j, v, x, k);
                 toutcoord += tauch;
@@ -723,7 +722,8 @@ int main() {
             Np * 0.25 / (R * R), Mgn);
     file.open(filename, std::ios::app); // append
 
-    file << counthistv_theta << " " << counthazure << " "<<ave <<" "<< maxnum << endl;
+    file << counthistv_theta << " " << counthazure << " " << ave << " "
+         << maxnum << endl;
     file.close();
 
     outputhist(hist, counthistv_theta, lohist, hist2);
