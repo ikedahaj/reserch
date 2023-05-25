@@ -9,8 +9,8 @@
 
 #include "BM.h"
 
-#define Np      12800 // 4の倍数であること;NP=4*r^2*lo
-#define Nn      4000
+#define Np      12 // 4の倍数であること;NP=4*r^2*lo
+#define Nn      10
 #define R       80. // 固定;// ,0.1より大きいこと;
 #define M       61  // M<=2R/(cut+skin)
 #define tmax    16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
@@ -655,6 +655,7 @@ int main() {
     k = 0;
     kcoord = 0;
     int kani = 0;
+    int kanit=0;
 
     calc_corr(x, x0, v0, v, msd, vcor, kcoord, msd2);
     t[0] = 0.;
@@ -668,9 +669,10 @@ int main() {
         auto_list_update(&disp_max, x, x_update, list);
         eom_aoup(v, x, f, a, temp, list, F);
         make_v_thetahist(x, v, hist, hist2, lohist);
-        if (j >= tanibitch) {
+        if (j >= kanit) {
             output_ani(j, v, x, kani);
             ++kani;
+            kanit+=tanibitch;
             if (j >= toutcoord) {
                 output(j, v, x, k);
                 toutcoord += tauch;
@@ -692,7 +694,7 @@ int main() {
 
         if (j >= toutcoord) {
             output(j, v, x, k);
-            outtuibi(x, toutcoord, v, ituibi);
+            // outtuibi(x, toutcoord, v, ituibi);
             toutcoord += tauch;
             ++k;
         }
@@ -721,7 +723,7 @@ int main() {
             Np * 0.25 / (R * R), Mgn);
     file.open(filename, std::ios::app); // append
 
-    file << counthistv_theta << " " << counthazure << ave << maxnum << endl;
+    file << counthistv_theta << " " << counthazure << " "<<ave <<" "<< maxnum << endl;
     file.close();
 
     outputhist(hist, counthistv_theta, lohist, hist2);
