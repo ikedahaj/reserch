@@ -7,12 +7,11 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#define v0  1.0
-#define R   80.
-#define lo  0.5
-#define dim 2
-#define Np  4 * R *R *lo
-// #define taketimes 5 // とるファイルの数;
+#define v0      1.0
+#define R       80.
+#define lo      0.4
+#define dim     2
+#define Np      (4 * R *R *lo)
 #define takebit 1 // 隣り合うファイルの間のファイル数を入力;
 #define takefst 0 // とるファイルの最初;
 #define bithist 1.
@@ -23,7 +22,7 @@ bool input_test(int k0, double tau, double mgn) {
     char          filename[128];
     std::ifstream file;
     sprintf(filename,
-            "./%s_coorlo%.2fv0%.1ftau%.3fm%.3f/%s_lo%.3f_tau%.3f_m%.3f_t%d.dat",
+            "./%s_animelo%.2fv0%.1ftau%.3fm%.3f/%s_lo%.3f_tau%.3f_m%.3f_t%d.dat",
             folder, lo, v0, tau, mgn, moji, lo, tau, mgn, k0);
     file.open(filename);
     if (!file) {
@@ -39,22 +38,22 @@ bool input(double *r, int k0, double *lz, int times, double tau, double mgn,
     char          filename[128];
     std::ifstream file;
     sprintf(filename,
-            "./%s_coorlo%.2fv0%.1ftau%.3fm%.3f/%s_lo%.3f_tau%.3f_m%.3f_t%d.dat",
+            "./%s_animelo%.2fv0%.1ftau%.3fm%.3f/%s_lo%.3f_tau%.3f_m%.3f_t%d.dat",
             folder, lo, v0, tau, mgn, moji, lo, tau, mgn, k0);
     file.open(filename);
     if (!file) {
         std::cout << "You Failed! " << times * takebit + takefst << std::endl;
         return true;
     }
-    double ti, x[dim], v[dim], lzi;
+    double ti, x[dim], vl[dim], lzi;
     int    mid;
     for (int i = 0; i < Np; i++) {
-        file >> ti >> x[0] >> x[1] >> v[0] >> v[1];
-        lzi = x[0] * v[1] - x[1] * v[0];
+        file >> ti >> x[0] >> x[1] >> vl[0] >> vl[1];
+        lzi = x[0] * vl[1] - x[1] * vl[0];
         mid = (int) (i + times * Np);
         r[mid] = sqrt(x[0] * x[0] + x[1] * x[1]);
-        lz[mid] = lzi / r[mid];
-        v[mid] = sqrt(v[0] * v[0] + v[1] * v[1]);
+        lz[mid] = lzi / (r[mid]*r[mid]);
+        v[mid] = sqrt(vl[0] * vl[0] + vl[1] * vl[1]);
     }
     t[times] = ti;
 
@@ -69,8 +68,8 @@ void make_hist(double *r, double *lz, double *lohist, double *lzhist,
     for (int i = 0; i < ens; i++) {
         if (r[i] < R) {
             lohist[(int) floor(r[i] * bithistinv)] += 1.;
-            lzhist[(int) floor(r[i] * bithistinv)] += lz[i];
-            omhist[(int) floor(r[i] * bithistinv)] += lz[i] / r[i];
+            lzhist[(int) floor(r[i] * bithistinv)] += lz[i]*r[i];
+            omhist[(int) floor(r[i] * bithistinv)] += lz[i] ;
         }
     }
     for (int j = 0; j < Nphist; j++) {
@@ -91,29 +90,33 @@ void make_difhist(double *r, double *lz, double *lohist, double *lzhist,
     for (int i = 0; i < ens; i++) {
         if (r[i] < R) {
             loc = (int) floor(r[i] * bithistinv);
-            dif = lz[i] - lzhist[loc];
+            dif = lz[i]*r[i] - lzhist[loc];
             difflz[loc] += dif * dif / lohist[loc];
-            dif = lz[i] / r[i] - omhist[loc];
+            dif = lz[i]  - omhist[loc];
             diffom[loc] += dif * dif / lohist[loc];
         }
     }
 }
-void calc_params_2(double(*r), double *om, double *v, double *fai,
+double usr_abs(double x){
+    return x*((x>0)-(x<0));
+}
+void calc_params_2(double (*r), double *om, double *v, double *fai,
                    double *omegabar, int k) {
-    double sum_vt = 0., sum_v = 0., omega_bar = 0.;
-    int maxroop;
-    for (int i = k*Np, maxroop=(k+1)*Np; i < maxroop; i++) {
-        sum_vt += om[i] * r[i];
+    double sum_vt = 0., sum_v = 0., omega_bar = 0.,npinv=1./Np;
+    int    maxroop;
+    
+    for (int i = k * Np, maxroop = (k + 1) * Np; i < maxroop; i++) {
+        sum_vt +=usr_abs( om[i] * r[i]);
         sum_v += v[i];
-        omega_bar += om[i];
+        omega_bar += (double)((om[i]>0)-(om[i]<0))*npinv;
     }
     fai[k] = (sum_vt / sum_v - M_2_PI) / (1 - M_2_PI);
-    omegabar[k] = omega_bar / Np;
+    omegabar[k] = omega_bar ;
 }
 
 void output(double *lohist, double *lzhist, double *difflz, double *omhist,
             double *diffom, double tau, double mgn, int taketimes, double *fai,
-            double *omegabar,double *t) {
+            double *omegabar, double *t) {
     int           Nphist = R / bithist + 1;
     char          filename[128];
     std::ofstream file;
@@ -192,7 +195,11 @@ int main() {
         taketimes++;
         k0 += takebit;
     }
+    if(taketimes==0)return -1;
     std::cout << taketimes << std::endl;
+    std::cout<<"2"<<usr_abs(2.)<<std::endl;
+    std::cout<<"-2"<<usr_abs(-2.)<<std::endl;
+    std::cout<<"0"<<usr_abs(0.)<<std::endl;
     double lohist[Nphist], lzhist[Nphist], omhist[Nphist], diffom[Nphist],
         difflz[Nphist], t[taketimes], fai[taketimes], omegabar[taketimes];
     k0 = takefst;
@@ -213,13 +220,14 @@ int main() {
         if (input(r, k0, lz, i, tau, mgn, t, v)) {
             return -1;
         }
-    calc_params_2(r,lz,v,fai,omegabar,i);
+        calc_params_2(r, lz, v, fai, omegabar, i);
         k0 += takebit;
     }
     make_hist(r, lz, lohist, lzhist, omhist, taketimes);
     make_difhist(r, lz, lohist, lzhist, difflz, omhist, diffom, taketimes);
-    output(lohist, lzhist, difflz, omhist, diffom, tau, mgn, taketimes,fai,omegabar,t);
-    // std::cout<<"sucseed!"<<std::endl;
+    output(lohist, lzhist, difflz, omhist, diffom, tau, mgn, taketimes, fai,
+           omegabar, t);
+    std::cout<<"sucseed!"<<std::endl;
     delete[] r;
     delete[] v;
     delete[] lz;
