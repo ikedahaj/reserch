@@ -92,7 +92,7 @@ void ini_array(double (*x)[dim]) {
             x[i][j] = 0.0;
 }
 
-void eom_abp2(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
+void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               double vv0,  double *theta_i) {
     double D = sqrt(2. / (tau * dt)), M_PI2 = 2. * M_PI, Co, ri, riw, aij, w2, w6, dUr,fiw[dim];
     for (int i = 0; i < Np; i++) {
@@ -285,21 +285,7 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
     file.close();
 }
 
-void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
-    char     filename[128];
-    ofstream file;
-    sprintf(filename,
-            "./%s_animelo%.2ftau%.3fm%.3fv0%.1f/"
-            "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-            folder_name, Np * 0.25 / (R * R), tau, mgn, v0, Np * 0.25 / (R * R),
-            tau, mgn, l);
-    file.open(filename /* std::ios::app*/); // append
-    for (int i = 0; i < Np; ++i) {
-        file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
-             << "\t" << v[i][1] << endl;
-    }
-    file.close();
-}
+
 void out_setup() {
     char     filename[128];
     ofstream file;
@@ -491,10 +477,6 @@ int main() {
             Np * 0.25 / (R * R), tau, mgn, v0);
     const char *fname2 = foldername2;
     mkdir(fname2, 0777);
-    sprintf(foldername, "%s_animelo%.2ftau%.3fm%.3fv0%.1f", folder_name,
-            Np * 0.25 / (R * R), tau, mgn, v0);
-    const char *fname3 = foldername;
-    mkdir(fname3, 0777);
     out_setup();
     std::cout << foldername << endl;
     while (tout < tmax) {
@@ -518,13 +500,13 @@ int main() {
     int tmaxbefch = 10 / dt;
     while (j < tmaxbefch) {
         ++j;
-        eom_abp2(v, x, f, a, vv0,  theta);
+        eom_abp1(v, x, f, a, vv0,  theta);
     }
     j = 0;
     tmaxbefch = tmaxlg / dt;
     while (j < tmaxbefch) {
         ++j;
-        eom_abp2(v, x, f, a, v0,theta);
+        eom_abp1(v, x, f, a, v0,theta);
     }
 
     int ituibi = 0, tauch = tau / dt, tmaxch = tmax / dt;
@@ -554,7 +536,7 @@ int main() {
     
     while (j < tmaxch) {
         ++j;
-        eom_abp2(v, x, f, a, v0, theta);
+        eom_abp1(v, x, f, a, v0, theta);
         make_v_thetahist(x, v, hist, hist2, lohist);
 
         if (j >= toutcoord) {
