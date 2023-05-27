@@ -230,19 +230,19 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     file.open(filename /*,std::ios::app*/); // append
 
     if (lohist[0] != 0.) {
-        file << (rsyou + 1.) * 0.5 << "\t" << (hist[0] / lohist[0]) << endl;
+        file << (rsyou + bitthist) * 0.5 << "\t" << (hist[0] / lohist[0]) << endl;
 
         v_theta += hist[0] / Np;
     } else {
-        file << (rsyou + 1.) * 0.5 << "\t" << 0 << endl;
+        file << (rsyou + bitthist) * 0.5 << "\t" << 0 << endl;
     }
     for (int i = 1; i < Nphist; ++i) {
         if (lohist[i] != 0.) {
-            file << i + rsyou + 0.5 << "\t" << (hist[i] / lohist[i]) << endl;
+            file <<  rsyou + (i+0.5)*bitthist << "\t" << (hist[i] / lohist[i]) << endl;
 
             v_theta += hist[i] / Np;
         } else {
-            file << i + rsyou + 0.5 << "\t" << 0 << endl;
+            file << (0.5+i)*bitthist + rsyou  << "\t" << 0 << endl;
         }
     }
     file.close();
@@ -261,15 +261,15 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     file.open(filename /*,std::ios::app*/); // append
 
     if (lohist[0] != 0.) {
-        file << (rsyou + 1.) * 0.5 << "\t" << (hist2[0] / lohist[0]) << endl;
+        file << (rsyou + bitthist) * 0.5 << "\t" << (hist2[0] / lohist[0]) << endl;
     } else {
-        file << (rsyou + 1.) * 0.5 << "\t" << 0 << endl;
+        file << (rsyou + bitthist) * 0.5 << "\t" << 0 << endl;
     }
     for (int i = 1; i < Nphist; ++i) {
         if (lohist[i] != 0.) {
-            file << i + rsyou + 0.5 << "\t" << (hist2[i] / lohist[i]) << endl;
+            file <<  rsyou + (i+0.5)*bitthist << "\t" << (hist2[i] / lohist[i]) << endl;
         } else {
-            file << i + rsyou + 0.5 << "\t" << 0 << endl;
+            file << (i+0.5)*bitthist + rsyou  << "\t" << 0 << endl;
         }
     }
     file.close();
@@ -278,7 +278,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
             folder_name, Np * 0.25 / (R * R), tau, mgn, v0, Np * 0.25 / (R * R),
             tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
-    file << (rsyou + 1.) * 0.5 << "\t" << (lohist[0] / (4. * (rsyou + 1.)))
+    file << (rsyou + bitthist) * 0.5 << "\t" << (lohist[0] / (4. * (rsyou + bitthist)*(rsyou+bitthist)))
          << endl;
     for (int i = 1; i < Nphist; ++i) {
         file << i + 0.5 + rsyou << "\t"
