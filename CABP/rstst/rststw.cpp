@@ -9,8 +9,8 @@
 
 #include "BM.h"
 
-#define Np          16 // 4の倍数であること;NP=4*r^2*lo
-#define Nn          10
+#define Np          12800 // 4の倍数であること;NP=4*r^2*lo
+#define Nn          5000
 #define R           80. // 固定;// ,0.1より大きいこと;
 #define M           61  // M<=2R/(cut+skin)
 #define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
