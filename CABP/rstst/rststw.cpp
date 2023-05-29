@@ -134,40 +134,35 @@ void eom_abp2(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         x[i][1] += v[i][1] * dt;
     }
 }
-void eom_aoup(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
-              double temp0, int (*list)[Nn], double (*F)[dim]) {
-    double tauinv = dt / tau;
-    double F0[dim], v1[2], fiw[2];
-    double fluc = sqrt(temp0 / dt), ri, riw, aij, w2, w6, dUr;
-    calc_force(x, f, a, list);
-    for (int i = 0; i < Np; ++i) {
+void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a, int (*list)[Nn], double *theta_i) {
+    double D = sqrt(2. * dt / tau), Mg = mgn * dt, M_PI2 = 2. * M_PI, Co, ri,
+           riw, aij, w2, w6, dUr, fiw[dim];
+    for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
         // /*force bitween wall;
-
         ri = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
         riw = R + 0.5 - ri;
         if (riw < cut) {
-            aij = 0.5 + a[i];
-            w2 = aij * aij / (riw * riw);
+            w2 = 1. / (riw * riw);
             w6 = w2 * w2 * w2;
             // w12=w6*w6;
             dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
             fiw[0] = dUr * x[i][0];
             fiw[1] = dUr * x[i][1];
         }
-        /// till here;*/
-        F0[0] = F[i][0];
-        F0[1] = F[i][1];
-        F[i][0] += (-F0[0] - F0[1] * mgn + fluc * gaussian_rand()) * tauinv;
-        F[i][1] += (-F0[1] + F0[0] * mgn + fluc * gaussian_rand()) * tauinv;
-
-        v[i][0] = F[i][0] + f[i][0] + fiw[0];
-        v[i][1] = F[i][1] + f[i][1] + fiw[1];
+        // till here*/
+        theta_i[i] += (D * gaussian_rand() + mgn) * dt;
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
+        v[i][0] = v0 * cos(theta_i[i]) + f[i][0];
+        v[i][1] =
+            v0 * sin(theta_i[i]) +
+            f[i][1];
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
 }
+
 
 void ini_hist(double *hist, int Nhist) {
     for (int i = 0; i < Nhist; ++i) {
@@ -191,99 +186,6 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
             lohist[histint] += bunbo;
         }
     }
-}
-void make_vt1hist(double (*x)[dim], double (*v)[dim], double(*hist)) {
-    // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
-    double v_t, dr, rint = (int) R, rsyou = R - rint,
-                    bunbo = 1. / (floor(tmax / dt));
-    int histint;
-    for (int i = 0; i < Np; ++i) {
-        dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
-        v_t = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / dr;
-        if (dr < R)
-            hist[(int) floor(abs(dr - rsyou))] += v_t * bunbo;
-    }
-}
-
-void make_lo1hist(double (*x)[dim], double(*hist)) {
-    double v_t, dr, rint = (int) R, rsyou = R - rint,
-                    bunbo = 1. / (floor(tmax / dt));
-    int histint;
-    for (int i = 0; i < Np; ++i) {
-        dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
-        if (dr < R)
-            hist[(int) floor(abs(dr - rsyou))] += bunbo;
-    }
-}
-void make_lohistx0(double (*x)[dim], double(*hist),
-                   double (*x0)[dim]) { // 関数を使うときは使用回数で割ること
-    double v_t, dr, rint = (int) R, rsyou = R - rint,
-                    bunbo = 1. / (floor(tmax / dt));
-    int histint;
-    for (int i = 0; i < Np; ++i) {
-        dr = sqrt((x[i][0] - x0[i][0]) * (x[i][0] - x0[i][0]) +
-                  (x[i][1] - x0[i][1]) * (x[i][1] - x0[i][1]));
-        if (dr <= R)
-            hist[(int) floor(abs(dr - rsyou))] += 1.;
-    }
-}
-void calc_diff(double (*x)[dim], double (*v)[dim], double *v_thetahist,
-               double *lohist, double *diffv_theta, double *difflo) {
-    double dr, v_theta, Rhistinv = 1., bub = 1. / Np, dif;
-    double rint = (int) R, rsyou = R - rint;
-    for (int i = 0; i < Np; ++i) {
-        dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
-        if (dr < R) {
-            v_theta = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / dr;
-            dif = (dr - lohist[(int) floor(abs(dr - rsyou))]);
-            difflo[(int) floor(abs(dr - rsyou))] += dif * dif / Np;
-            dif = v_theta - v_thetahist[(int) floor(abs(dr - rsyou))] /
-                                lohist[(int) floor(abs(dr - rsyou))];
-            diffv_theta[(int) floor(abs(dr - rsyou))] +=
-                dif * dif / lohist[(int) floor(abs(dr - rsyou))];
-        }
-    }
-}
-void out_gosahist(double (*x)[dim], double (*v)[dim]) {
-    int    Nphist = (int) (R + 1.);
-    double v_thetahist[Nphist], lohist[Nphist], diffv_theta[Nphist],
-        difflo[Nphist];
-
-    ini_hist(lohist, Nphist);
-    ini_hist(v_thetahist, Nphist);
-    ini_hist(difflo, Nphist);
-    ini_hist(diffv_theta, Nphist);
-    make_lo1hist(x, lohist);
-    make_vt1hist(x, v, v_thetahist);
-    calc_diff(x, v, v_thetahist, lohist, diffv_theta, difflo);
-    char     filename[128];
-    double   bitthist = R / Nphist, ryou = R - (int) R;
-    ofstream file;
-    sprintf(filename,
-            "./%slo%.2ftau%.3fm%.3fv0%.1f/lzdif_lo%.3f_tau%.3f_m%.3f.dat",
-            folder_name, Np * 0.25 / (R * R), tau, mgn, v0, Np * 0.25 / (R * R),
-            tau, mgn);
-    file.open(filename, std::ios::app); // append
-    for (int i = 0; i < Nphist; ++i) {
-        if (lohist[i] != 0.) {
-            file << (i + 0.5 + ryou) << "\t" << (v_thetahist[i] / lohist[i])
-                 << "\t" << diffv_theta[i] << endl;
-        } else {
-            file << i + 0.5 * ryou << "\t" << 0 << "\t" << 0 << endl;
-        }
-    }
-    file.close();
-    sprintf(filename,
-            "./%slo%.2ftau%.3fm%.3fv0%.1f/lodif_lo%.3f_tau%.3f_m%.3f.dat",
-            folder_name, Np * 0.25 / (R * R), tau, mgn, v0, Np * 0.25 / (R * R),
-            tau, mgn);
-    file.open(filename, std::ios::app);
-    for (int i = 0; i < Nphist; ++i) {
-        file << (i + 0.5 + ryou) << "\t"
-             << lohist[i] / (2. * M_PI * (i + 0.5 + ryou)) << "\t" << difflo[i]
-             << endl;
-    }
-    file.close();
 }
 
 void output(int k, double (*v)[dim], double (*x)[dim], int l) {
@@ -403,8 +305,8 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
             folder_name, Np * 0.25 / (R * R), tau, mgn, v0, Np * 0.25 / (R * R),
             tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
-    file << (rsyou + 1.) * 0.5 << "\t" << (lohist[0] / (4. * (rsyou + 1.)))
-         << endl;
+    file << (rsyou + 1.) * 0.5 << "\t"
+         << (lohist[0] / (4. * (rsyou + 1.) * (rsyou + 1.))) << endl;
     for (int i = 1; i < Nphist; ++i) {
         file << i + 0.5 + rsyou << "\t"
              << (lohist[i] / (8. * (i + 0.5 + rsyou))) << endl;
@@ -460,24 +362,6 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     file.close();
 }
 
-void outv_thetat(double *hist, int counthistv_theta, double tout) {
-    char     filename[128];
-    double   v_theta = 0.;
-    int      Nphist = (int) (R + 1.);
-    ofstream file;
-    sprintf(filename,
-            "./%slo%.2ftau%.3fm%.3fv0%.1f/v_thetatime_lo%.3f_tau%.3f_m%.3f.dat",
-            folder_name, Np * 0.25 / (R * R), tau, mgn, v0, Np * 0.25 / (R * R),
-            tau, mgn);
-    file.open(filename, std::ios::app); // append
-    double bunbo = floor(tmax / dt) / (counthistv_theta * Np);
-    for (int i = 0; i < Nphist; ++i) {
-
-        v_theta += hist[i] * bunbo;
-    }
-    file << tout << "\t" << v_theta << endl;
-    file.close();
-}
 void cell_list(int (*list)[Nn], double (*x)[dim]) {
     int    i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
     double dx, dy, thresh2 = (cut + skin) * (cut + skin), bit = M / (2. * R);
@@ -606,15 +490,12 @@ int main() {
     ini_hist(vcor, countout);
 
     j = 0;
-    double vv0 = v0 * 5;
-    if (vv0 < 5)
-        vv0 = 5.;
-    j = 0;
+    
     int tmaxbefch = 10 / dt;
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp2(v, x, f, a, vv0, list, theta);
+        eom_abp1(v,x,f,a,list,theta);
     }
 
     j = 0;
@@ -646,14 +527,12 @@ int main() {
     calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
     t[0] = 0.;
     ++kcoord;
-
-    out_gosahist(x, v);
     output(j, v, x, k);
     ++k;
     while (j < tanimaxch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp2(v, x, f, a, v0, list, theta);
+        eom_abp1(v, x, f, a,  list, theta);
         make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
             output_ani(j, v, x, kani);
@@ -675,7 +554,7 @@ int main() {
     while (j < tmaxch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp2(v, x, f, a, v0, list, theta);
+        eom_abp1(v, x, f, a, list, theta);
         make_v_thetahist(x, v, hist, hist2, lohist);
 
         if (j >= toutcoord) {
