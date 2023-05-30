@@ -119,22 +119,63 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
             }
         }
 }
-void eom_abp2(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
-              double vv0, int (*list)[Nn], double *theta_i) {
-    double D = sqrt(2. / (tau * dt)), M_PI2 = 2. * M_PI, Co;
+
+void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
+              int (*list)[Nn], double *theta_i) {
+    double ddt = 0.0000001, D = sqrt(2. * ddt / 0.01), Mg = mgn * ddt,
+           M_PI2 = 2. * M_PI, ri, riw, aij, w2, w6, dUr, fiw[dim];
     for (int i = 0; i < Np; i++) {
-        theta_i[i] += (D * gaussian_rand() + mgn) * dt;
+        fiw[0] = 0.;
+        fiw[1] = 0.;
+        // /*force bitween wall;
+        ri = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
+        riw = R + 0.5 - ri;
+        if (riw < cut) {
+            w2 = 1. / (riw * riw);
+            w6 = w2 * w2 * w2;
+            // w12=w6*w6;
+            dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+            fiw[0] = dUr * x[i][0];
+            fiw[1] = dUr * x[i][1];
+        }
+        // till here*/
+        theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        Co = cos(theta_i[i]);
-        v[i][0] = v0 * Co + f[i][0];
-        v[i][1] =
-            v0 * ((theta_i[i] > 0) - (theta_i[i] < 0)) * sqrt(1. - Co * Co) +
-            f[i][1];
+        v[i][0] = 100. * cos(theta_i[i]) + f[i][0] + fiw[0];
+        v[i][1] = 100. * sin(theta_i[i]) + f[i][1] + fiw[1];
+        x[i][0] += v[i][0] * ddt;
+        x[i][1] += v[i][1] * ddt;
+    }
+}
+void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
+              int (*list)[Nn], double *theta_i) {
+    double D = sqrt(2. * dt / 0.01), Mg = mgn * dt, M_PI2 = 2. * M_PI, Co, ri,
+           riw, aij, w2, w6, dUr, fiw[dim];
+    for (int i = 0; i < Np; i++) {
+        fiw[0] = 0.;
+        fiw[1] = 0.;
+        // /*force bitween wall;
+        ri = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
+        riw = R + 0.5 - ri;
+        if (riw < cut) {
+            w2 = 1. / (riw * riw);
+            w6 = w2 * w2 * w2;
+            // w12=w6*w6;
+            dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+            fiw[0] = dUr * x[i][0];
+            fiw[1] = dUr * x[i][1];
+        }
+        // till here*/
+        theta_i[i] += D * gaussian_rand() + Mg;
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
+        v[i][0] = 100. * cos(theta_i[i]) + f[i][0] + fiw[0];
+        v[i][1] = 100. * sin(theta_i[i]) + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
 }
-void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a, int (*list)[Nn], double *theta_i) {
+void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
+              int (*list)[Nn], double *theta_i) {
     double D = sqrt(2. * dt / tau), Mg = mgn * dt, M_PI2 = 2. * M_PI, Co, ri,
            riw, aij, w2, w6, dUr, fiw[dim];
     for (int i = 0; i < Np; i++) {
@@ -152,17 +193,14 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a, i
             fiw[1] = dUr * x[i][1];
         }
         // till here*/
-        theta_i[i] += (D * gaussian_rand() + mgn) * dt;
+        theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        v[i][0] = v0 * cos(theta_i[i]) + f[i][0];
-        v[i][1] =
-            v0 * sin(theta_i[i]) +
-            f[i][1];
+        v[i][0] = v0 * cos(theta_i[i]) + f[i][0] + fiw[0];
+        v[i][1] = v0 * sin(theta_i[i]) + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
 }
-
 
 void ini_hist(double *hist, int Nhist) {
     for (int i = 0; i < Nhist; ++i) {
@@ -488,14 +526,19 @@ int main() {
     ini_hist(t, countout);
     ini_hist(msd2, countout);
     ini_hist(vcor, countout);
-
+j = 0;
+    while (j < 1e7) {
+        ++j;
+        auto_list_update(&disp_max, x, x_update, list);
+        eom_abp9(v, x, f, a, list, theta);
+    }
     j = 0;
-    
+
     int tmaxbefch = 10 / dt;
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp1(v,x,f,a,list,theta);
+        eom_abp8(v, x, f, a, list, theta);
     }
 
     j = 0;
@@ -503,7 +546,7 @@ int main() {
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp2(v, x, f, a, v0, list, theta);
+        eom_abp1(v, x, f, a,  list, theta);
     }
 
     int ituibi = 0, tauch = tau / dt, tmaxch = tmax / dt,
@@ -532,7 +575,7 @@ int main() {
     while (j < tanimaxch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp1(v, x, f, a,  list, theta);
+        eom_abp1(v, x, f, a, list, theta);
         make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
             output_ani(j, v, x, kani);
