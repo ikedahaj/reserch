@@ -13,11 +13,11 @@
 #define Nn          5000
 #define R           80. // 固定;// ,0.1より大きいこと;
 #define M           61  // M<=2R/(cut+skin)
-#define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      800 // 緩和時間は10たうとする;
+#define tmax        16 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      8 // 緩和時間は10たうとする;
 #define v0          1.
-#define tau         80.
-#define mgn         0.08 // Omega=omega/tau,ここではomegaを入れること;
+// #define tau         80.//コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
+// #define mgn         0.0 // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500  //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define dim         2           // 変えるときはEomを変えること;
