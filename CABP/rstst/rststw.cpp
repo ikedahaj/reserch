@@ -11,7 +11,7 @@
 
 // #define parameters::Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define lo          0.5 // コンパイル時に代入する定数;
-#define Nn          5000
+#define Nn          1000
 #define R           80. // 固定;// ,0.1より大きいこと;
 #define M           61  // M<=2R/(cut+skin)
 #define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
@@ -43,6 +43,7 @@ class parameters {
     constexpr static double cut2 = cut * cut;
     constexpr static double M_PI2 = 2. * M_PI;
     constexpr static double Mg = mgn * dt;
+    constexpr static double Np_1=1./Np;
 };
 void ini_coord_circle(double (*x)[dim]) {
     double R2 = R - 0.5;
@@ -216,7 +217,8 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
                       double *hist2, double *lohist) {
     // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
     // v_thetaとomegaを算出、histがｖhist2がΩ;
-    double v_t, dr, bunbo = 1. / (floor(tmax / dt));
+    double v_t, dr;
+    const static double  bunbo = 1. / (floor(tmax / dt));
     int    histint;
     for (int i = 0; i < parameters::Np; ++i) {
         dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
@@ -298,7 +300,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     if (lohist[0] != 0.) {
         file << (rsyou + 1.) * 0.5 << "\t" << (hist[0] / lohist[0]) << endl;
 
-        v_theta += hist[0] / parameters::Np;
+        v_theta += hist[0] *parameters::Np_1;
     } else {
         file << (rsyou + 1.) * 0.5 << "\t" << 0 << endl;
     }
@@ -306,7 +308,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
         if (lohist[i] != 0.) {
             file << i + rsyou + 0.5 << "\t" << (hist[i] / lohist[i]) << endl;
 
-            v_theta += hist[i] / parameters::Np;
+            v_theta += hist[i] *parameters::Np_1;
         } else {
             file << i + rsyou + 0.5 << "\t" << 0 << endl;
         }
@@ -354,13 +356,12 @@ void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
                double (*v)[dim], double *xcor, double *vcor, int k,
                double *msd) {
     double           dr;
-    constexpr double bunbo = 1. / parameters::Np;
     for (int i = 0; i < parameters::Np; ++i) {
         for (int j = 0; j < dim; ++j) {
-            xcor[k] += x0[i][j] * x[i][j] * bunbo;
-            vcor[k] += v1[i][j] * v[i][j] * bunbo;
+            xcor[k] += x0[i][j] * x[i][j] * parameters::Np_1;
+            vcor[k] += v1[i][j] * v[i][j] * parameters::Np_1;
             dr = x[i][j] - x0[i][j];
-            msd[k] += dr * dr * bunbo;
+            msd[k] += dr * dr * parameters::Np_1;
         }
     }
 }
