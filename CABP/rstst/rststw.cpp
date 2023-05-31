@@ -10,14 +10,14 @@
 #include "BM.h"
 
 // #define parameters::Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo          0.5 // コンパイル時に代入する定数;
-#define Nn          1000
-#define R           80. // 固定;// ,0.1より大きいこと;
-#define M           61  // M<=2R/(cut+skin)
-#define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      800 // 緩和時間は10たうとする;
-#define v0          1.
-#define tau         80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
+#define lo     0.5 // コンパイル時に代入する定数;
+#define Nn     1000
+#define R      80. // 固定;// ,0.1より大きいこと;
+#define M      61  // M<=2R/(cut+skin)
+#define tmax   16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg 800 // 緩和時間は10たうとする;
+#define v0     1.
+#define tau    80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 // #define mgn         0.0 // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
@@ -43,7 +43,7 @@ class parameters {
     constexpr static double cut2 = cut * cut;
     constexpr static double M_PI2 = 2. * M_PI;
     constexpr static double Mg = mgn * dt;
-    constexpr static double Np_1=1./Np;
+    constexpr static double Np_1 = 1. / Np;
 };
 void ini_coord_circle(double (*x)[dim]) {
     double R2 = R - 0.5;
@@ -128,7 +128,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double ddt = 0.0000001, D = sqrt(2. * ddt / 0.01), ri, riw, aij, w2, w6,
            dUr, fiw[dim];
-    constexpr double Mg = mgn * 0.0000001;
+    calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
@@ -144,7 +144,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
             fiw[1] = dUr * x[i][1];
         }
         // till here*/
-        theta_i[i] += D * gaussian_rand() + Mg;
+        theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
         v[i][0] = 100. * cos(theta_i[i]) + f[i][0] + fiw[0];
         v[i][1] = 100. * sin(theta_i[i]) + f[i][1] + fiw[1];
@@ -156,6 +156,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double        ri, riw, aij, w2, w6, dUr, fiw[dim];
     static double D = sqrt(2. * dt / 0.01);
+    calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
@@ -179,10 +180,12 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         x[i][1] += v[i][1] * dt;
     }
 }
+
 void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double        ri, riw, aij, w2, w6, dUr, fiw[dim];
     static double D = sqrt(2. * dt / tau);
+    calc_force(x,f,a,list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
@@ -217,9 +220,9 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
                       double *hist2, double *lohist) {
     // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
     // v_thetaとomegaを算出、histがｖhist2がΩ;
-    double v_t, dr;
-    const static double  bunbo = 1. / (floor(tmax / dt));
-    int    histint;
+    double              v_t, dr;
+    const static double bunbo = 1. / (floor(tmax / dt));
+    int                 histint;
     for (int i = 0; i < parameters::Np; ++i) {
         dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
         v_t = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / (dr * dr);
@@ -300,7 +303,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     if (lohist[0] != 0.) {
         file << (rsyou + 1.) * 0.5 << "\t" << (hist[0] / lohist[0]) << endl;
 
-        v_theta += hist[0] *parameters::Np_1;
+        v_theta += hist[0] * parameters::Np_1;
     } else {
         file << (rsyou + 1.) * 0.5 << "\t" << 0 << endl;
     }
@@ -308,7 +311,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
         if (lohist[i] != 0.) {
             file << i + rsyou + 0.5 << "\t" << (hist[i] / lohist[i]) << endl;
 
-            v_theta += hist[i] *parameters::Np_1;
+            v_theta += hist[i] * parameters::Np_1;
         } else {
             file << i + rsyou + 0.5 << "\t" << 0 << endl;
         }
@@ -355,7 +358,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
 void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
                double (*v)[dim], double *xcor, double *vcor, int k,
                double *msd) {
-    double           dr;
+    double dr;
     for (int i = 0; i < parameters::Np; ++i) {
         for (int j = 0; j < dim; ++j) {
             xcor[k] += x0[i][j] * x[i][j] * parameters::Np_1;
