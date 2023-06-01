@@ -9,16 +9,16 @@
 
 #include "BM.h"
 
-// #define parameters::Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo     0.5 // コンパイル時に代入する定数;
-#define Nn     1000
-#define R      80. // 固定;// ,0.1より大きいこと;
-#define M      61  // M<=2R/(cut+skin)
-#define tmax   16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg 800 // 緩和時間は10たうとする;
-#define v0     1.
-#define tau    80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
-// #define mgn         0.0 // Omega=omega/tau,ここではomegaを入れること;
+// #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
+#define lo          0.5 // コンパイル時に代入する定数;
+#define Nn          10
+#define R           80. // 固定;// ,0.1より大きいこと;
+#define M           61  // M<=2R/(cut+skin)
+#define tmax        16 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      8 // 緩和時間は10たうとする;
+#define v0          1.
+#define tau         80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
+// #define mgn         0.1 // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define dim         2           // 変えるときはEomを変えること;
@@ -146,8 +146,8 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         // till here*/
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
-        v[i][0] = 100. * cos(theta_i[i]) + f[i][0] + fiw[0];
-        v[i][1] = 100. * sin(theta_i[i]) + f[i][1] + fiw[1];
+        v[i][0] = 10. * cos(theta_i[i]) + f[i][0] + fiw[0];
+        v[i][1] = 10. * sin(theta_i[i]) + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * ddt;
         x[i][1] += v[i][1] * ddt;
     }
@@ -174,8 +174,8 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         // till here*/
         theta_i[i] += D * gaussian_rand() + parameters::Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
-        v[i][0] = 100. * cos(theta_i[i]) + f[i][0] + fiw[0];
-        v[i][1] = 100. * sin(theta_i[i]) + f[i][1] + fiw[1];
+        v[i][0] = 10. * cos(theta_i[i]) + f[i][0] + fiw[0];
+        v[i][1] = 10. * sin(theta_i[i]) + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
@@ -185,7 +185,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double        ri, riw, aij, w2, w6, dUr, fiw[dim];
     static double D = sqrt(2. * dt / tau);
-    calc_force(x,f,a,list);
+    calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
@@ -537,14 +537,28 @@ int main() {
         eom_abp9(v, x, f, a, list, theta);
     }
     j = 0;
-
+    for (int ch = 0; ch < parameters::Np; ch++) {
+        if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
+            output(-1, v, x, -1);
+            std::cout << "hazure in kasanari" << ch << endl;
+            return -1;
+        }
+    }
+    std::cout << "passed kasanari!" << endl;
     int tmaxbefch = 10 / dt;
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
         eom_abp8(v, x, f, a, list, theta);
     }
-
+    for (int ch = 0; ch < parameters::Np; ch++) {
+        if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
+            output(-1, v, x, -1);
+            std::cout << "hazure in kakimaze" << ch << endl;
+            return -1;
+        }
+    }
+    std::cout << "passed kakimaze!" << endl;
     j = 0;
     tmaxbefch = tmaxlg / dt;
     while (j < tmaxbefch) {
@@ -552,7 +566,14 @@ int main() {
         auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
     }
-
+    for (int ch = 0; ch < parameters::Np; ch++) {
+        if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
+            output(-1, v, x, -1);
+            std::cout << "hazure in owari" << ch << endl;
+            return -1;
+        }
+    }
+    std::cout << "passed owari!" << endl;
     int ituibi = 0, tauch = tau / dt, tmaxch = tmax / dt,
         tanimaxch = tmaxani / dt, tanibitch = tbitani / dt;
 
