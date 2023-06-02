@@ -146,8 +146,8 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         // till here*/
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
-        v[i][0] = 10. * cos(theta_i[i]) + f[i][0] + fiw[0];
-        v[i][1] = 10. * sin(theta_i[i]) + f[i][1] + fiw[1];
+        v[i][0] =  cos(theta_i[i]) + f[i][0] + fiw[0];
+        v[i][1] =  sin(theta_i[i]) + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * ddt;
         x[i][1] += v[i][1] * ddt;
     }
