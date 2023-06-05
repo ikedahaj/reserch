@@ -1,4 +1,5 @@
-#include <cfloat>
+
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -302,6 +303,7 @@ void out_setup() {
     file << "2DkaraD" << endl;
     file << "壁はWCA" << endl;
     file << "cell list" << endl;
+    file << "usr_sincos" << endl;
     file.close();
 }
 
@@ -500,6 +502,8 @@ void auto_list_update(double *disp_max, double (*x)[dim],
 }
 
 int main() {
+    std::chrono::system_clock::time_point start, end; // 型は auto で可
+    start = std::chrono::system_clock::now();         // 計測開始時間
     double x[parameters::Np][dim], v[parameters::Np][dim],
         theta[parameters::Np], a[parameters::Np], f[parameters::Np][dim],
         x0[parameters::Np][dim], v1[parameters::Np][dim],
@@ -563,7 +567,7 @@ int main() {
         }
     }
     std::cout << "passed kasanari!" << endl;
-    int tmaxbefch = 10 / dt;
+    int tmaxbefch = R / (dt * 5);
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
@@ -665,6 +669,7 @@ int main() {
         if (x[i][0] * x[i][0] + x[i][1] * x[i][1] > R * R)
             counthazure++;
     }
+    end = std::chrono::system_clock::now(); // 計測終了時間
     char filename[128];
 
     ofstream file;
@@ -674,7 +679,10 @@ int main() {
     file.open(filename, std::ios::app); // append
 
     file << counthistv_theta << " " << counthazure << " " << ave << " "
-         << maxnum << endl;
+         << maxnum << " " << endl;
+    file << std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+                .count()
+         << endl; // 処理に要した時間をミリ秒に変換
     file.close();
 
     outputhist(hist, counthistv_theta, lohist, hist2);
