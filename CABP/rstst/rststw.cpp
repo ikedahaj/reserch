@@ -11,14 +11,14 @@
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define lo          0.5 // コンパイル時に代入する定数;
-#define Nn          10
+#define Nn          200
 #define R           80. // 固定;// ,0.1より大きいこと;
 #define M           61  // M<=2R/(cut+skin)
-#define tmax        16 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      8 // 緩和時間は10たうとする;
+#define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      800 // 緩和時間は10たうとする;
 #define v0          1.
 #define tau         80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
-// #define mgn         0.1 // Omega=omega/tau,ここではomegaを入れること;
+#define mgn         0.1 // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define dim         2           // 変えるときはEomを変えること;
@@ -39,12 +39,27 @@ using std::ofstream;
 class parameters {
 
   public:
-    constexpr static int    Np = 4 * R * R * lo;
-    constexpr static double cut2 = cut * cut;
-    constexpr static double M_PI2 = 2. * M_PI;
-    constexpr static double Mg = mgn * dt;
-    constexpr static double Np_1 = 1. / Np;
+    static constexpr int    Np = 4 * R * R * lo;
+    static constexpr double cut2 = cut * cut;
+    static constexpr double M_PI2 = 2. * M_PI;
+    static constexpr double Mg = mgn * dt;
+    static constexpr double Np_1 = 1. / Np;
 };
+void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
+    constexpr static double waru[6] = {
+        -1.0 / (3 * 4 * 5 * 6 * 7 * 8), 1.0 / (3 * 4 * 5 * 6), -1.0 / (3 * 4),
+        -1.0 / (2 * 3 * 4 * 5 * 6 * 7), 1.0 / (2 * 3 * 4 * 5), -1.0 / (2 * 3)};
+    kaku *= 0.0625; // 0.03125;//kaku/=1/2^m;
+    double c, s, z = kaku * kaku;
+    c = (((waru[0] * z + waru[1]) * z + waru[2]) * z + 1.) * z;
+    s = (((waru[3] * z + waru[4]) * z + waru[5]) * z + 1.) * kaku;
+    for (int i = 0; i < 4; i++) { // mmade;
+        s = s * (2.0 - c);
+        c = c * (4.0 - c);
+    }
+    x[0] = 1.0 - c * 0.5;
+    x[1] = s;
+}
 void ini_coord_circle(double (*x)[dim]) {
     double R2 = R - 0.5;
     double num_max = sqrt(parameters::Np / M_PI);
@@ -127,7 +142,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double ddt = 0.0000001, D = sqrt(2. * ddt / 0.01), ri, riw, aij, w2, w6,
-           dUr, fiw[dim];
+           dUr, fiw[dim], sinco[2];
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
@@ -146,15 +161,16 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         // till here*/
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
-        v[i][0] =  cos(theta_i[i]) + f[i][0] + fiw[0];
-        v[i][1] =  sin(theta_i[i]) + f[i][1] + fiw[1];
+        usr_sincos(theta_i[i], sinco);
+        v[i][0] = sinco[0] + f[i][0] + fiw[0];
+        v[i][1] = sinco[1] + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * ddt;
         x[i][1] += v[i][1] * ddt;
     }
 }
 void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    double        ri, riw, aij, w2, w6, dUr, fiw[dim];
+    double        ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
     static double D = sqrt(2. * dt / 0.01);
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
@@ -174,8 +190,9 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         // till here*/
         theta_i[i] += D * gaussian_rand() + parameters::Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
-        v[i][0] = 10. * cos(theta_i[i]) + f[i][0] + fiw[0];
-        v[i][1] = 10. * sin(theta_i[i]) + f[i][1] + fiw[1];
+        usr_sincos(theta_i[i], sico);
+        v[i][0] = 5. * sico[0] + f[i][0] + fiw[0];
+        v[i][1] = 5. * sico[1] + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
@@ -183,8 +200,8 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 
 void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    double        ri, riw, aij, w2, w6, dUr, fiw[dim];
-    static double D = sqrt(2. * dt / tau);
+    double              ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
+    const static double D = sqrt(2. * dt / tau);
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
@@ -203,8 +220,9 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         // till here*/
         theta_i[i] += D * gaussian_rand() + parameters::Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
-        v[i][0] = v0 * cos(theta_i[i]) + f[i][0] + fiw[0];
-        v[i][1] = v0 * sin(theta_i[i]) + f[i][1] + fiw[1];
+        usr_sincos(theta_i[i], sico);
+        v[i][0] = v0 * sico[0] + f[i][0] + fiw[0];
+        v[i][1] = v0 * sico[1] + f[i][1] + fiw[1];
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
