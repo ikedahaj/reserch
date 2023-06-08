@@ -517,6 +517,28 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
     }
     delete[] map;
 }
+void list_verlet(int (*list)[Nn], double (*x)[dim]) {
+    double dx, dy, dr2;
+    double thresh = cut + skin;
+    for (int i = 0; i <parameters:: Np; i++)
+        for (int j = 0; j < Nn; j++)
+            list[i][j] = 0;
+
+    for (int i = 0; i <parameters:: Np; i++)
+        for (int j = 0; j <parameters:: Np; j++) {
+            if (j > i) {
+                dx = x[i][0] - x[j][0];
+                dy = x[i][1] - x[j][1];
+                //   dx-=L*floor((dx+0.5*L)/L);
+                //   dy-=L*floor((dy+0.5*L)/L);
+                dr2 = dx * dx + dy * dy;
+                if (dr2 < thresh * thresh) {
+                    list[i][0]++;
+                    list[i][(int) list[i][0]] = j;
+                }
+            }
+        }
+}
 void update(double (*x_update)[dim], double (*x)[dim]) {
     for (int i = 0; i < parameters::Np; i++)
         for (int j = 0; j < dim; j++)
@@ -544,7 +566,7 @@ void auto_list_update(double *disp_max, double (*x)[dim],
     constexpr double skin2 = skin * skin * 0.25;
     calc_disp_max(&(*disp_max), x, x_update);
     if (*disp_max > skin2) {
-        cell_list(list, x);
+        list_verlet(list, x);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
         *disp_max = 0.0;
