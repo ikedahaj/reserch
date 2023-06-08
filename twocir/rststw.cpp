@@ -606,6 +606,7 @@ int main() {
     ini_hist(msd2, countout);
     ini_hist(vcor, countout);
     j = 0;
+    
     while (j < 1e7) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
@@ -613,7 +614,7 @@ int main() {
     }
     j = 0;
     for (int ch = 0; ch < parameters::Np; ch++) {
-        if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
+        if ((x[ch][0]>0&&dist2right(x[ch])>R*R)||(x[ch][0]<0&&dist2left(x[ch])>R*R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in kasanari" << ch << endl;
             return -1;
@@ -627,7 +628,7 @@ int main() {
         eom_abp8(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < parameters::Np; ch++) {
-        if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
+        if ((x[ch][0]>0&&dist2right(x[ch])>R*R)||(x[ch][0]<0&&dist2left(x[ch])>R*R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in kakimaze" << ch << endl;
             return -1;
@@ -642,7 +643,7 @@ int main() {
         eom_abp1(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < parameters::Np; ch++) {
-        if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
+        if ((x[ch][0]>0&&dist2right(x[ch])>R*R)||(x[ch][0]<0&&dist2left(x[ch])>R*R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in owari" << ch << endl;
             return -1;
