@@ -14,7 +14,7 @@
 #define lo          0.207 // コンパイル時に代入する定数;
 #define Nn          200
 #define R           10. // 固定;// ,0.1より大きいこと;
-#define M           61  // M<=2R/(cut+skin)
+// #define M           61  // M<=2R/(cut+skin)
 #define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      800 // 緩和時間は10たうとする;
 #define Rbit        1.4 // delta/R;
@@ -473,23 +473,27 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
 
 void cell_list(int (*list)[Nn], double (*x)[dim]) {
     int i, j, k, l, m, lm, mm, map_index, km, nx[parameters::Np][2];
-    constexpr double thresh2 = (cut + skin) * (cut + skin), bit = M / (2. * R);
+    constexpr double thresh2 = (cut + skin) * (cut + skin);
     double           dx, dy;
-    constexpr int    m2 = M * M;
+    constexpr double xlen_2 = (2. * R + Rbit * R)/2.;
+    constexpr int    Mx = (int) (xlen_2*2. / (cut + skin));
+    constexpr int    My = (int) (2. * R / (cut + skin));
+    constexpr int    m2 = Mx * My;
+    constexpr double R2 = 2. * R, bitx = Mx / (xlen_2*2.),
+                     bity = My / (R2); // ひとつのせるの幅の逆数;
     int(*map)[parameters::Np] = new int[m2][parameters::Np];
 
-    for (i = 0; i < M; ++i)
-        for (j = 0; j < M; ++j)
-            map[i + M * j][0] = 0;
+    for (i = 0; i < m2; ++i)
+        map[i][0] = 0;
 
     for (i = 0; i < parameters::Np; ++i) {
-        nx[i][0] = (int) ((x[i][0] + R) * bit);
-        nx[i][1] = (int) ((x[i][1] + R) * bit);
-        for (m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, M - 1); m <= mm;
+        nx[i][0] = (int) ((x[i][0] + xlen_2) * bitx);
+        nx[i][1] = (int) ((x[i][1] + R) * bity);
+        for (m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, Mx - 1); m <= mm;
              ++m) {
-            for (l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, M - 1);
+            for (l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, My - 1);
                  l <= lm; ++l) {
-                map_index = l + M * m;
+                map_index = l + Mx * m;
                 map[map_index][map[map_index][0] + 1] = i;
                 map[map_index][0]++;
             }
@@ -500,7 +504,7 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
         list[i][0] = 0;
         // nx = (int)((x[i][0]+R) * bit);
         // ny = (int)((x[i][1]+R) * bit);
-        map_index = nx[i][0] + M * nx[i][1];
+        map_index = nx[i][0] + Mx * nx[i][1];
         for (k = 1, km = (map[map_index][0]); k <= km; ++k) {
             j = map[map_index][k];
             if (j > i) {
@@ -520,12 +524,12 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
 void list_verlet(int (*list)[Nn], double (*x)[dim]) {
     double dx, dy, dr2;
     double thresh = cut + skin;
-    for (int i = 0; i <parameters:: Np; i++)
+    for (int i = 0; i < parameters::Np; i++)
         for (int j = 0; j < Nn; j++)
             list[i][j] = 0;
 
-    for (int i = 0; i <parameters:: Np; i++)
-        for (int j = 0; j <parameters:: Np; j++) {
+    for (int i = 0; i < parameters::Np; i++)
+        for (int j = 0; j < parameters::Np; j++) {
             if (j > i) {
                 dx = x[i][0] - x[j][0];
                 dy = x[i][1] - x[j][1];
@@ -628,7 +632,7 @@ int main() {
     ini_hist(msd2, countout);
     ini_hist(vcor, countout);
     j = 0;
-    
+
     while (j < 1e7) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
@@ -636,7 +640,8 @@ int main() {
     }
     j = 0;
     for (int ch = 0; ch < parameters::Np; ch++) {
-        if ((x[ch][0]>0&&dist2right(x[ch])>R*R)||(x[ch][0]<0&&dist2left(x[ch])>R*R)) {
+        if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
+            (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in kasanari" << ch << endl;
             return -1;
@@ -650,7 +655,8 @@ int main() {
         eom_abp8(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < parameters::Np; ch++) {
-        if ((x[ch][0]>0&&dist2right(x[ch])>R*R)||(x[ch][0]<0&&dist2left(x[ch])>R*R)) {
+        if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
+            (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in kakimaze" << ch << endl;
             return -1;
@@ -665,7 +671,8 @@ int main() {
         eom_abp1(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < parameters::Np; ch++) {
-        if ((x[ch][0]>0&&dist2right(x[ch])>R*R)||(x[ch][0]<0&&dist2left(x[ch])>R*R)) {
+        if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
+            (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in owari" << ch << endl;
             return -1;
