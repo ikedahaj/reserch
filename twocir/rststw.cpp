@@ -36,7 +36,7 @@ using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-inline double t_sqrtD(const double &x) {
+constexper double t_sqrtD(const double &x) {
     double        xHalf = 0.5 * x;
     long long int tmp =
         0x5FE6EB50C7B537AAl - (*(long long int *) &x >> 1); // initial guess
@@ -82,6 +82,7 @@ class parameters {
 
 
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
+//制度は10^-13程度;
     constexpr static double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
                                        -1.0 / (3 * 4 * 5 * 6 * 7 * 8),
                                        1.0 / (3 * 4 * 5 * 6),
@@ -235,7 +236,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double        ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
-    static double D = sqrt(2. * dt / 0.01);
+    double D = sqrt(2. * dt / 0.01);
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
@@ -347,9 +348,9 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%s_coorlo%.2ftau%.3fm%.3fv0%.1f/"
+             "./%s_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
+             folder_name, lo, tau, mgn,Rbit, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
     for (int i = 0; i < parameters::Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
@@ -375,7 +376,7 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
 void out_setup() {
     char     filename[128];
     ofstream file;
-    snprintf(filename, 128, "./%slo%.2ftau%.3fm%.3fv0%.1f/setupr%fm%f.dat",
+    snprintf(filename, 128, "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/setupr%fm%f.dat",
              folder_name, lo, tau, mgn, v0, R, mgn);
     file.open(filename, std::ios::app); // append
 
@@ -406,7 +407,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     ofstream file;
     snprintf(
         filename, 128,
-        "./%slo%.2ftau%.3fm%.3fv0%.1f/v_thetahist_lo%.3f_tau%.3f_m%.3f.dat",
+        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/v_thetahist_lo%.3f_tau%.3f_m%.3f.dat",
         folder_name, lo, tau, mgn, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
 
@@ -428,7 +429,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     }
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fv0%.1f/v_theta_lo%.3f_tau%.3f.dat",
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/v_theta_lo%.3f_tau%.3f.dat",
              folder_name, lo, tau, mgn, v0, lo, tau);
     file.open(filename, std::ios::app); // append
     file << tau << "\t" << mgn << "\t" << R << "\t" << v_theta << endl;
@@ -436,7 +437,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
 
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fv0%.1f/omegahist_lo%.3f_tau%.3f_m%.3f.dat",
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/omegahist_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, tau, mgn, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
 
@@ -454,7 +455,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     }
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fv0%.1f/lohist_lo%.3f_tau%.3f_m%.3f.dat",
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/lohist_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, tau, mgn, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     file << (rsyou + 1.) * 0.5 << "\t"
@@ -486,7 +487,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     double   v_theta;
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fv0%.1f/xcor_lo%.3f_tau%.3f_m%.3f.dat",
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/xcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, tau, mgn, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
@@ -494,7 +495,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     }
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fv0%.1f/vcor_lo%.3f_tau%.3f_m%.3f.dat",
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/vcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, tau, mgn, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
@@ -502,7 +503,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     }
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fv0%.1f/msd_lo%.3f_tau%.3f_m%.3f.dat",
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/msd_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, tau, mgn, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
@@ -643,16 +644,16 @@ int main() {
     ini_hist(lohist, Nphist);
     ini_hist(hist2, Nphist);
     char foldername[128];
-    snprintf(foldername, 128, "%slo%.2ftau%.3fm%.3fv0%.1f", folder_name, lo,
-             tau, mgn, v0);
+    snprintf(foldername, 128, "%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name, lo,
+             tau, mgn,Rbit, v0);
     const char *fname = foldername;
     mkdir(fname, 0777);
-    snprintf(foldername, 128, "%s_coorlo%.2ftau%.3fm%.3fv0%.1f", folder_name,
-             lo, tau, mgn, v0);
+    snprintf(foldername, 128, "%s_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name,
+             lo, tau, mgn,Rbit, v0);
     const char *fname2 = foldername;
     mkdir(fname2, 0777);
-    snprintf(foldername, 128, "%s_animelo%.2ftau%.3fm%.3fv0%.1f", folder_name,
-             lo, tau, mgn, v0);
+    snprintf(foldername, 128, "%s_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name,
+             lo, tau, mgn,Rbit, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
     out_setup();
@@ -796,7 +797,7 @@ int main() {
 
     ofstream file;
 
-    snprintf(filename, 128, "./%slo%.2ftau%.3fm%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
+    snprintf(filename, 128, "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
              folder_name, lo, tau, mgn, v0, lo, mgn);
     file.open(filename, std::ios::app); // append
 
