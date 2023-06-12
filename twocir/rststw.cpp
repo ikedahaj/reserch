@@ -16,7 +16,7 @@
 #define R           10. // 固定;// ,0.1より大きいこと;
 #define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      800 // 緩和時間は10たうとする;
-#define Rbit        1.4 // delta/R;
+#define Rbit        0.// delta/R,Rにすると穴がなくなる;
 #define v0          1.
 #define tau         80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0.1 // Omega=omega/tau,ここではomegaを入れること;
