@@ -11,7 +11,7 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo          0.207 // コンパイル時に代入する定数;
+#define lo          0.20 // コンパイル時に代入する定数;
 #define Nn          200
 #define R           10. // 固定;// ,0.1より大きいこと;
 #define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
@@ -36,19 +36,7 @@ using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-constexper double t_sqrtD(const double &x) {
-    double        xHalf = 0.5 * x;
-    long long int tmp =
-        0x5FE6EB50C7B537AAl - (*(long long int *) &x >> 1); // initial guess
-    double xRes = *(double *) &tmp;
 
-    xRes *= (1.5 - (xHalf * xRes * xRes));
-    xRes *= (1.5 - (xHalf * xRes * xRes)); // コメントアウトを外すと精度が上がる
-    xRes *= (1.5 - (xHalf * xRes * xRes));
-    xRes *= (1.5 - (xHalf * xRes * xRes));
-    xRes *= (1.5 - (xHalf * xRes * xRes));
-    return xRes * x;
-}
 constexpr double
 usr_arccos(double theta) { // 1付近の誤差0.1程度.シミュレーションでは使うな;
     constexpr double waru[5] = {63. / 2816, 35. / 1152, 5. / 112, 3. / 40,
@@ -61,28 +49,34 @@ usr_arccos(double theta) { // 1付近の誤差0.1程度.シミュレーション
                  theta;
     return M_PI_2 - asi;
 }
+constexpr double usr_sqrt(double x) {
+    double b = x;
+    for (int i = 0; i < 1000; i++) {
+        b = (b * b + x) / (2. * b);
+    }
+    return b;
+}
 class parameters {
-  
-    
+  private:
+    static constexpr double rbit2 = 1 - Rbit * Rbit * 0.25;
 
   public:
     static constexpr double Rbit_2 = Rbit * 0.5;
     static constexpr double Npd =
-         (lo * M_2_PI * 2. * R * R *
-               (M_PI - usr_arccos(Rbit_2) +
-                Rbit_2 * t_sqrtD(1 -Rbit_2*Rbit_2))); // 4 * R * R * lo;
-    static constexpr int Np=Npd;
+        (lo * M_2_PI * 2. * R * R *
+         (M_PI - usr_arccos(Rbit_2) +
+          Rbit_2 * usr_sqrt(rbit2))); // 4 * R * R * lo;
+    static constexpr int    Np = Npd;
     static constexpr double cut2 = cut * cut;
     static constexpr double M_PI2 = 2. * M_PI;
     static constexpr double Mg = mgn * dt;
-    static constexpr double Np_1 = 1. / Np;
+    static constexpr double Np_1 = 1. / Npd;
     static constexpr double center_left = -Rbit * 0.5 * R;
     static constexpr double center_rignt = Rbit * 0.5 * R;
 };
 
-
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
-//制度は10^-13程度;
+                                          // 制度は10^-13程度;
     constexpr static double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
                                        -1.0 / (3 * 4 * 5 * 6 * 7 * 8),
                                        1.0 / (3 * 4 * 5 * 6),
@@ -235,7 +229,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 }
 void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    double        ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
+    double ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
     double D = sqrt(2. * dt / 0.01);
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
@@ -350,7 +344,7 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
     snprintf(filename, 128,
              "./%s_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, lo, tau, mgn,Rbit, v0, lo, tau, mgn, l);
+             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
     for (int i = 0; i < parameters::Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
@@ -363,9 +357,9 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%s_animelo%.2ftau%.3fm%.3fv0%.1f/"
+             "./%s_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
+             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < parameters::Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
@@ -376,8 +370,9 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
 void out_setup() {
     char     filename[128];
     ofstream file;
-    snprintf(filename, 128, "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/setupr%fm%f.dat",
-             folder_name, lo, tau, mgn, v0, R, mgn);
+    snprintf(filename, 128,
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/setupr%fm%f.dat", folder_name,
+             lo, tau, mgn, Rbit, v0, R, mgn);
     file.open(filename, std::ios::app); // append
 
     file << "dt=" << dt << endl;
@@ -388,12 +383,11 @@ void out_setup() {
     file << "tmax=" << tmax << endl;
     file << "tmaxlg=" << tmaxlg << endl;
     file << "v0=" << v0 << endl;
-    // file << "ens=" << ensemble << endl;
-    file << "type=" << 2 << endl;
     file << "2DkaraD" << endl;
     file << "壁はWCA" << endl;
     file << "cell list" << endl;
     file << "usr_sincos" << endl;
+    file << "自動Np" << endl;
     file.close();
 }
 
@@ -405,10 +399,10 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     int      Nphist = (int) (R + 1.);
     double   rsyou = R - (int) R;
     ofstream file;
-    snprintf(
-        filename, 128,
-        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/v_thetahist_lo%.3f_tau%.3f_m%.3f.dat",
-        folder_name, lo, tau, mgn, v0, lo, tau, mgn);
+    snprintf(filename, 128,
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "v_thetahist_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
 
     if (lohist[0] != 0.) {
@@ -430,15 +424,16 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     file.close();
     snprintf(filename, 128,
              "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/v_theta_lo%.3f_tau%.3f.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau);
+             folder_name, lo, tau, mgn, Rbit, v0, lo, tau);
     file.open(filename, std::ios::app); // append
     file << tau << "\t" << mgn << "\t" << R << "\t" << v_theta << endl;
     file << tau << "\t" << mgn << "\t" << R << "\t" << v_theta << endl;
 
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/omegahist_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau, mgn);
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "omegahist_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
 
     if (lohist[0] != 0.) {
@@ -454,9 +449,10 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
         }
     }
     file.close();
-    snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/lohist_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau, mgn);
+    snprintf(
+        filename, 128,
+        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/lohist_lo%.3f_tau%.3f_m%.3f.dat",
+        folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     file << (rsyou + 1.) * 0.5 << "\t"
          << (lohist[0] / (4. * (rsyou + 1.) * (rsyou + 1.))) << endl;
@@ -486,17 +482,19 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     char     filename[128];
     double   v_theta;
     ofstream file;
-    snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/xcor_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau, mgn);
+    snprintf(
+        filename, 128,
+        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/xcor_lo%.3f_tau%.3f_m%.3f.dat",
+        folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
         file << t[i] << "\t" << msd[i] << endl;
     }
     file.close();
-    snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/vcor_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau, mgn);
+    snprintf(
+        filename, 128,
+        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/vcor_lo%.3f_tau%.3f_m%.3f.dat",
+        folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
         file << t[i] << "\t" << vcor[i] << endl;
@@ -504,7 +502,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     file.close();
     snprintf(filename, 128,
              "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/msd_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, v0, lo, tau, mgn);
+             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
         file << t[i] << "\t" << msd2[i] << endl;
@@ -562,28 +560,7 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
     }
     delete[] map;
 }
-void list_verlet(int (*list)[Nn], double (*x)[dim]) {
-    double dx, dy, dr2;
-    double thresh = cut + skin;
-    for (int i = 0; i < parameters::Np; i++)
-        for (int j = 0; j < Nn; j++)
-            list[i][j] = 0;
 
-    for (int i = 0; i < parameters::Np; i++)
-        for (int j = 0; j < parameters::Np; j++) {
-            if (j > i) {
-                dx = x[i][0] - x[j][0];
-                dy = x[i][1] - x[j][1];
-                //   dx-=L*floor((dx+0.5*L)/L);
-                //   dy-=L*floor((dy+0.5*L)/L);
-                dr2 = dx * dx + dy * dy;
-                if (dr2 < thresh * thresh) {
-                    list[i][0]++;
-                    list[i][(int) list[i][0]] = j;
-                }
-            }
-        }
-}
 void update(double (*x_update)[dim], double (*x)[dim]) {
     for (int i = 0; i < parameters::Np; i++)
         for (int j = 0; j < dim; j++)
@@ -611,7 +588,7 @@ void auto_list_update(double *disp_max, double (*x)[dim],
     constexpr double skin2 = skin * skin * 0.25;
     calc_disp_max(&(*disp_max), x, x_update);
     if (*disp_max > skin2) {
-        list_verlet(list, x);
+        cell_list(list, x);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
         *disp_max = 0.0;
@@ -644,20 +621,20 @@ int main() {
     ini_hist(lohist, Nphist);
     ini_hist(hist2, Nphist);
     char foldername[128];
-    snprintf(foldername, 128, "%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name, lo,
-             tau, mgn,Rbit, v0);
+    snprintf(foldername, 128, "%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name,
+             lo, tau, mgn, Rbit, v0);
     const char *fname = foldername;
     mkdir(fname, 0777);
-    snprintf(foldername, 128, "%s_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name,
-             lo, tau, mgn,Rbit, v0);
+    snprintf(foldername, 128, "%s_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f",
+             folder_name, lo, tau, mgn, Rbit, v0);
     const char *fname2 = foldername;
     mkdir(fname2, 0777);
-    snprintf(foldername, 128, "%s_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name,
-             lo, tau, mgn,Rbit, v0);
+    snprintf(foldername, 128, "%s_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f",
+             folder_name, lo, tau, mgn, Rbit, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
     out_setup();
-    // output(-1,v,x,-1);
+    output(-1, v, x, -1);
     std::cout << foldername << endl;
     while (tout < tmax) {
 
@@ -746,7 +723,7 @@ int main() {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
-        make_v_thetahist(x, v, hist, hist2, lohist);
+        // make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
             output_ani(j, v, x, kani);
             ++kani;
@@ -768,7 +745,7 @@ int main() {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
-        make_v_thetahist(x, v, hist, hist2, lohist);
+        // make_v_thetahist(x, v, hist, hist2, lohist);
 
         if (j >= toutcoord) {
             output(j, v, x, k);
@@ -797,8 +774,9 @@ int main() {
 
     ofstream file;
 
-    snprintf(filename, 128, "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
-             folder_name, lo, tau, mgn, v0, lo, mgn);
+    snprintf(filename, 128,
+             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
+             folder_name, lo, tau, mgn, Rbit, v0, lo, mgn);
     file.open(filename, std::ios::app); // append
 
     file << counthistv_theta << " " << counthazure << " " << ave << " "
