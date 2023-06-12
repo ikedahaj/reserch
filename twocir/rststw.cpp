@@ -16,7 +16,7 @@
 #define R           10. // 固定;// ,0.1より大きいこと;
 #define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      800 // 緩和時間は10たうとする;
-#define Rbit        0.// delta/R,Rにすると穴がなくなる;
+#define Rbit        0.  // delta/R,Rにすると穴がなくなる;
 #define v0          1.
 #define tau         80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0.1 // Omega=omega/tau,ここではomegaを入れること;
@@ -27,7 +27,7 @@
 #define skin        1.5
 #define dtlg        0.0001
 #define dt          0.0001
-#define folder_name "stwr80"
+#define folder_name "stwr80"//40文字程度で大きすぎ;
 #define msdbit      1.1
 #define msdini      0.01
 // #define polydispersity 0.2 コードも変える;
@@ -106,7 +106,7 @@ inline double dist2left(double *x) {
     return xb * xb + x[1] * x[1];
 }
 
-void ini_coord_twocircles(double (*x)[dim]) {
+bool ini_coord_twocircles(double (*x)[dim]) {
     double bit = 1 / (lo * M_PI),
            R2 = R - 0.5; // radiousを変える時はここを変える;
     int namari = parameters::Np % 4;
@@ -146,7 +146,15 @@ void ini_coord_twocircles(double (*x)[dim]) {
         x[i + 4 * nmax][0] = (double) i;
         x[i + 4 * nmax][1] = 0.;
     }
-    std::cout << k * 4 << " " << parameters::Np << endl;
+    
+    if(4*k+namari==parameters::Np){
+        std::cout << k * 4 << " " << parameters::Np << endl;
+        return true;
+    }
+    else{
+        std::cout<<"passed Np is"<<k*4+namari<<" "<<parameters::Np<<endl;
+        return false;
+    }
 }
 
 void set_diameter(double *a) {
@@ -342,9 +350,9 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%s_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "./%sR%.1f_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn, l);
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
     for (int i = 0; i < parameters::Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
@@ -357,22 +365,24 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%s_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "./%sR%.1f_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn, l);
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < parameters::Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
              << "\t" << v[i][1] << endl;
     }
     file.close();
+    
 }
-void out_setup() {
+bool out_setup() {//filenameが１２８文字を超えていたらfalseを返す;
     char     filename[128];
     ofstream file;
-    snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/setupr%fm%f.dat", folder_name,
-             lo, tau, mgn, Rbit, v0, R, mgn);
+    int test=snprintf(filename, 128,
+             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/setupofst_lo%.3f_tau%.3f_m%.3f_t%d.dat",
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo,tau, mgn,tmax);
+             std::cout<<test<<endl;
     file.open(filename, std::ios::app); // append
 
     file << "dt=" << dt << endl;
@@ -389,6 +399,8 @@ void out_setup() {
     file << "usr_sincos" << endl;
     file << "自動Np" << endl;
     file.close();
+    if(test==-1)return false;
+    else return true;
 }
 
 void outputhist(double *hist, int counthistv_theta, double *lohist,
@@ -400,9 +412,9 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     double   rsyou = R - (int) R;
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
              "v_thetahist_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
 
     if (lohist[0] != 0.) {
@@ -422,18 +434,19 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
         }
     }
     file.close();
-    snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/v_theta_lo%.3f_tau%.3f.dat",
-             folder_name, lo, tau, mgn, Rbit, v0, lo, tau);
+    snprintf(
+        filename, 128,
+        "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/v_theta_lo%.3f_tau%.3f.dat",
+        folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau);
     file.open(filename, std::ios::app); // append
     file << tau << "\t" << mgn << "\t" << R << "\t" << v_theta << endl;
     file << tau << "\t" << mgn << "\t" << R << "\t" << v_theta << endl;
 
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
              "omegahist_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
 
     if (lohist[0] != 0.) {
@@ -449,10 +462,10 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
         }
     }
     file.close();
-    snprintf(
-        filename, 128,
-        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/lohist_lo%.3f_tau%.3f_m%.3f.dat",
-        folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "lohist_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     file << (rsyou + 1.) * 0.5 << "\t"
          << (lohist[0] / (4. * (rsyou + 1.) * (rsyou + 1.))) << endl;
@@ -482,27 +495,28 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     char     filename[128];
     double   v_theta;
     ofstream file;
-    snprintf(
-        filename, 128,
-        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/xcor_lo%.3f_tau%.3f_m%.3f.dat",
-        folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "xcor_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
         file << t[i] << "\t" << msd[i] << endl;
     }
     file.close();
-    snprintf(
-        filename, 128,
-        "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/vcor_lo%.3f_tau%.3f_m%.3f.dat",
-        folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+             "vcor_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
         file << t[i] << "\t" << vcor[i] << endl;
     }
     file.close();
-    snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/msd_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
+    snprintf(
+        filename, 128,
+        "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/msd_lo%.3f_tau%.3f_m%.3f.dat",
+        folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
     for (int i = 0; i < countout; ++i) {
         file << t[i] << "\t" << msd2[i] << endl;
@@ -612,7 +626,7 @@ int main() {
 
     int j = 0, k = 0, kcoord = 0;
     set_diameter(a);
-    ini_coord_twocircles(x);
+    if(!ini_coord_twocircles(x))return -1;
     ini_array(v);
 
     ini_array(f);
@@ -621,21 +635,25 @@ int main() {
     ini_hist(lohist, Nphist);
     ini_hist(hist2, Nphist);
     char foldername[128];
-    snprintf(foldername, 128, "%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f", folder_name,
-             lo, tau, mgn, Rbit, v0);
+    snprintf(foldername, 128, "%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f",
+             folder_name, R, lo, tau, mgn, Rbit, v0);
     const char *fname = foldername;
     mkdir(fname, 0777);
-    snprintf(foldername, 128, "%s_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f",
-             folder_name, lo, tau, mgn, Rbit, v0);
+    snprintf(foldername, 128, "%sR%.1f_coorlo%.2ftau%.3fm%.3fbit%.3fv0%.1f",
+             folder_name, R, lo, tau, mgn, Rbit, v0);
     const char *fname2 = foldername;
     mkdir(fname2, 0777);
-    snprintf(foldername, 128, "%s_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f",
-             folder_name, lo, tau, mgn, Rbit, v0);
+    snprintf(foldername, 128, "%sR%.1f_animelo%.2ftau%.3fm%.3fbit%.3fv0%.1f",
+             folder_name, R, lo, tau, mgn, Rbit, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
-    out_setup();
+    if( !out_setup()){
+        std::cout<<"file name is too long"<<endl;
+        return -1;
+    }
     output(-1, v, x, -1);
     std::cout << foldername << endl;
+
     while (tout < tmax) {
 
         tout *= msdbit;
@@ -775,8 +793,8 @@ int main() {
     ofstream file;
 
     snprintf(filename, 128,
-             "./%slo%.2ftau%.3fm%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
-             folder_name, lo, tau, mgn, Rbit, v0, lo, mgn);
+             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
+             folder_name, R, lo, tau, mgn, Rbit, v0, lo, mgn);
     file.open(filename, std::ios::app); // append
 
     file << counthistv_theta << " " << counthazure << " " << ave << " "
