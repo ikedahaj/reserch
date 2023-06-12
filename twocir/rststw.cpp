@@ -544,9 +544,9 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
     for (i = 0; i < parameters::Np; ++i) {
         nx[i][0] = (int) ((x[i][0] + xlen_2) * bitx);
         nx[i][1] = (int) ((x[i][1] + R) * bity);
-        for (m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, Mx - 1); m <= mm;
+        for (m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, My - 1); m <= mm;
              ++m) {
-            for (l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, My - 1);
+            for (l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, Mx - 1);
                  l <= lm; ++l) {
                 map_index = l + Mx * m;
                 map[map_index][map[map_index][0] + 1] = i;
