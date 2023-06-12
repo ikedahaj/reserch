@@ -14,12 +14,12 @@
 #define lo          0.20 // コンパイル時に代入する定数;
 #define Nn          200
 #define R           10. // 固定;// ,0.1より大きいこと;
-#define tmax        16000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      800 // 緩和時間は10たうとする;
-#define Rbit        0.  // delta/R,Rにすると穴がなくなる;
+#define tmax        12000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      600 // 緩和時間は10たうとする;
+#define Rbit        1.3 // delta/R,Rにすると穴がなくなる;
 #define v0          1.
-#define tau         80. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
-#define mgn         0.1 // Omega=omega/tau,ここではomegaを入れること;
+#define tau         60. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
+#define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define dim         2           // 変えるときはEomを変えること;
@@ -27,7 +27,7 @@
 #define skin        1.5
 #define dtlg        0.0001
 #define dt          0.0001
-#define folder_name "stwr80"//40文字程度で大きすぎ;
+#define folder_name "stw" // 40文字程度で大きすぎ;
 #define msdbit      1.1
 #define msdini      0.01
 // #define polydispersity 0.2 コードも変える;
@@ -61,11 +61,10 @@ class parameters {
     static constexpr double rbit2 = 1 - Rbit * Rbit * 0.25;
 
   public:
-    static constexpr double Rbit_2 = Rbit * 0.5;
+    static constexpr double rbit_2 = Rbit * 0.5;
     static constexpr double Npd =
         (lo * M_2_PI * 2. * R * R *
-         (M_PI - usr_arccos(Rbit_2) +
-          Rbit_2 * usr_sqrt(rbit2))); // 4 * R * R * lo;
+         (M_PI - usr_arccos(rbit_2) + rbit_2 * usr_sqrt(rbit2)));
     static constexpr int    Np = Npd;
     static constexpr double cut2 = cut * cut;
     static constexpr double M_PI2 = 2. * M_PI;
@@ -111,16 +110,16 @@ bool ini_coord_twocircles(double (*x)[dim]) {
            R2 = R - 0.5; // radiousを変える時はここを変える;
     int namari = parameters::Np % 4;
     int nmax = parameters::Np / 4, k = 0;
-
-    x[k][0] = 0.5;
-    x[k][1] = 0.5;
-    x[k + nmax][0] = 0.5;
-    x[k + nmax][1] = -0.5;
-    x[k * 2 * nmax][0] = -0.5;
-    x[k + 2 * nmax][1] = 0.5;
-    x[k + 3 * nmax][0] = -0.5;
-    x[k + 3 * nmax][1] = -0.5;
-    k++;
+    /*
+        x[k][0] = 0.5;
+        x[k][1] = 0.5;
+        x[k + nmax][0] = 0.5;
+        x[k + nmax][1] = -0.5;
+        x[k * 2 * nmax][0] = -0.5;
+        x[k + 2 * nmax][1] = 0.5;
+        x[k + 3 * nmax][0] = -0.5;
+        x[k + 3 * nmax][1] = -0.5;
+        k++;*/
     for (int i = 0; i < nmax; i++) {
         for (int j = 0; j < nmax; j++) {
             double r2[2] = {0.5 + i * bit, (0.5 + j * bit)};
@@ -146,13 +145,13 @@ bool ini_coord_twocircles(double (*x)[dim]) {
         x[i + 4 * nmax][0] = (double) i;
         x[i + 4 * nmax][1] = 0.;
     }
-    
-    if(4*k+namari==parameters::Np){
+
+    if (4 * k + namari == parameters::Np) {
         std::cout << k * 4 << " " << parameters::Np << endl;
         return true;
-    }
-    else{
-        std::cout<<"passed Np is"<<k*4+namari<<" "<<parameters::Np<<endl;
+    } else {
+        std::cout << "passed Np is" << k * 4 + namari << " " << parameters::Np
+                  << endl;
         return false;
     }
 }
@@ -194,7 +193,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
 }
 
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
-              int (*list)[Nn], double *theta_i) {
+              int (*list)[Nn], double *theta_i, int timei) {
     double ddt = 0.0000001, D = sqrt(2. * ddt / 0.01), ri, riw, aij, w2, w6,
            dUr, fiw[dim], sinco[2];
     calc_force(x, f, a, list);
@@ -374,15 +373,16 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
              << "\t" << v[i][1] << endl;
     }
     file.close();
-    
 }
-bool out_setup() {//filenameが１２８文字を超えていたらfalseを返す;
+bool out_setup() { // filenameが１２８文字を超えていたらfalseを返す;
     char     filename[128];
     ofstream file;
-    int test=snprintf(filename, 128,
-             "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/setupofst_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, R, lo, tau, mgn, Rbit, v0, lo,tau, mgn,tmax);
-             std::cout<<test<<endl;
+    int      test =
+        snprintf(filename, 128,
+                 "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/"
+                 "setupofst_lo%.3f_tau%.3f_m%.3f_t%d.dat",
+                 folder_name, R, lo, tau, mgn, Rbit, v0, lo, tau, mgn, tmax);
+    std::cout << test << endl;
     file.open(filename, std::ios::app); // append
 
     file << "dt=" << dt << endl;
@@ -399,8 +399,10 @@ bool out_setup() {//filenameが１２８文字を超えていたらfalseを返�
     file << "usr_sincos" << endl;
     file << "自動Np" << endl;
     file.close();
-    if(test==-1)return false;
-    else return true;
+    if (test == -1)
+        return false;
+    else
+        return true;
 }
 
 void outputhist(double *hist, int counthistv_theta, double *lohist,
@@ -626,7 +628,8 @@ int main() {
 
     int j = 0, k = 0, kcoord = 0;
     set_diameter(a);
-    if(!ini_coord_twocircles(x))return -1;
+    if (!ini_coord_twocircles(x))
+        return -1;
     ini_array(v);
 
     ini_array(f);
@@ -647,8 +650,8 @@ int main() {
              folder_name, R, lo, tau, mgn, Rbit, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
-    if( !out_setup()){
-        std::cout<<"file name is too long"<<endl;
+    if (!out_setup()) {
+        std::cout << "file name is too long" << endl;
         return -1;
     }
     output(-1, v, x, -1);
@@ -671,7 +674,7 @@ int main() {
     while (j < 1e7) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp9(v, x, f, a, list, theta);
+        eom_abp9(v, x, f, a, list, theta, j);
     }
     j = 0;
     for (int ch = 0; ch < parameters::Np; ch++) {
@@ -679,7 +682,7 @@ int main() {
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in kasanari" << ch << endl;
-            return -1;
+            // return -1;
         }
     }
     std::cout << "passed kasanari!" << endl;
