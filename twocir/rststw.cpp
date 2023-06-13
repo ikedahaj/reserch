@@ -72,6 +72,7 @@ class parameters {
     static constexpr double Np_1 = 1. / Npd;
     static constexpr double center_left = -Rbit * 0.5 * R;
     static constexpr double center_rignt = Rbit * 0.5 * R;
+    static constexpr double x0limit=R*usr_sqrt(1-Rbit*Rbit*0.25);
 };
 
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
@@ -194,14 +195,14 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
 
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
-    double ddt = 0.0000001, D = sqrt(2. * ddt / 0.01), ri, riw, aij, w2, w6,
-           dUr, fiw[dim], sinco[2];
+    double           ri, riw, aij, w2, w6, dUr, fiw[dim], sinco[2];
+    constexpr double ddt = 0.0000001, D = usr_sqrt(2. * ddt / 0.01);
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
         // /*force bitween wall;
-        if (x[i][0] > 0) {
+        if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
             if (riw < cut) {
@@ -212,7 +213,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 fiw[0] = dUr * x[i][0];
                 fiw[1] = dUr * x[i][1];
             }
-        } else {
+        } else if(x[i][0]<0.){
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
             if (riw < cut) {
@@ -221,6 +222,16 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
                 fiw[0] = dUr * x[i][0];
+                fiw[1] = dUr * x[i][1];
+            }
+        }else if(x[i][0]==0.){
+            ri=abs(x[i][1]);
+            riw=parameters::x0limit+0.5-ri;
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
+                w6 = w2 * w2 * w2;
+                // w12=w6*w6;
+                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
                 fiw[1] = dUr * x[i][1];
             }
         }
@@ -237,13 +248,13 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
-    double D = sqrt(2. * dt / 0.01);
+    constexpr static double D = usr_sqrt(2. * dt / 0.01);
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
         // /*force bitween wall;
-        if (x[i][0] > 0) {
+        if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
             if (riw < cut) {
@@ -254,7 +265,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 fiw[0] = dUr * x[i][0];
                 fiw[1] = dUr * x[i][1];
             }
-        } else {
+        } else if(x[i][0]<0.){
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
             if (riw < cut) {
@@ -263,6 +274,16 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
                 fiw[0] = dUr * x[i][0];
+                fiw[1] = dUr * x[i][1];
+            }
+        }else if(x[i][0]==0.){
+            ri=abs(x[i][1]);
+            riw=parameters::x0limit+0.5-ri;
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
+                w6 = w2 * w2 * w2;
+                // w12=w6*w6;
+                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
                 fiw[1] = dUr * x[i][1];
             }
         }
@@ -280,13 +301,13 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double              ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
-    const static double D = sqrt(2. * dt / tau);
+    constexpr static double D = usr_sqrt(2. * dt / tau);
     calc_force(x, f, a, list);
     for (int i = 0; i < parameters::Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
         // /*force bitween wall;
-        if (x[i][0] > 0) {
+        if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
             if (riw < cut) {
@@ -297,7 +318,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 fiw[0] = dUr * x[i][0];
                 fiw[1] = dUr * x[i][1];
             }
-        } else {
+        } else if(x[i][0]<0.){
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
             if (riw < cut) {
@@ -306,6 +327,16 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
                 fiw[0] = dUr * x[i][0];
+                fiw[1] = dUr * x[i][1];
+            }
+        }else if(x[i][0]==0.){
+            ri=abs(x[i][1]);
+            riw=parameters::x0limit+0.5-ri;
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
+                w6 = w2 * w2 * w2;
+                // w12=w6*w6;
+                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
                 fiw[1] = dUr * x[i][1];
             }
         }
@@ -398,6 +429,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "cell list" << endl;
     file << "usr_sincos" << endl;
     file << "自動Np" << endl;
+    file<<"x=0での壁を追加"<<endl;
     file.close();
     if (test == -1)
         return false;
