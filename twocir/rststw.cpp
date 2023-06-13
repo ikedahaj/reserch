@@ -64,7 +64,7 @@ class parameters {
     static constexpr double rbit_2 = Rbit * 0.5;
     static constexpr double Npd =
         (lo * M_2_PI * 2. * R * R *
-         (M_PI - usr_arccos(rbit_2) + rbit_2 * usr_sqrt(rbit2)));
+         (M_PI - usr_arccos(rbit_2) + rbit_2 * usr_sqrt(rbit2)))*2.;
     static constexpr int    Np = Npd;
     static constexpr double cut2 = cut * cut;
     static constexpr double M_PI2 = 2. * M_PI;
@@ -430,6 +430,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "usr_sincos" << endl;
     file << "自動Np" << endl;
     file<<"x=0での壁を追加"<<endl;
+    file<<"modNp"<<endl;
     file.close();
     if (test == -1)
         return false;
