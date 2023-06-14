@@ -618,9 +618,7 @@ void calc_disp_max(double *disp_max, double (*x)[dim],
     for (int i = 0; i < Np; i++) {
         dx = x[i][0] - x_update[i][0];
         dy = x[i][1] - x_update[i][1];
-
-        disp = dx * dx + dy * dy;
-        if (disp > *disp_max)
+        if (dx * dx + dy * dy > *disp_max)
             *disp_max = disp;
     }
 }
