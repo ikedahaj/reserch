@@ -37,15 +37,11 @@ using std::min;
 using std::ofstream;
 // #define radios 1.
 
-class parameters {
-
-  public:
-    static constexpr int    Np = 4 * R * R * lo;
-    static constexpr double cut2 = cut * cut;
-    static constexpr double M_PI2 = 2. * M_PI;
-    static constexpr double Mg = mgn * dt;
-    static constexpr double Np_1 = 1. / Np;
-};
+static constexpr int    Np = 4 * R * R * lo;
+static constexpr double cut2 = cut * cut;
+static constexpr double M_PI2 = 2. * M_PI;
+static constexpr double Mg = mgn * dt;
+static constexpr double Np_1 = 1. / Np;
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
     constexpr static double waru[6] = {
         -1.0 / (3 * 4 * 5 * 6 * 7 * 8), 1.0 / (3 * 4 * 5 * 6), -1.0 / (3 * 4),
@@ -63,9 +59,9 @@ void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
 }
 void ini_coord_circle(double (*x)[dim]) {
     double R2 = R - 0.5;
-    double num_max = sqrt(parameters::Np / M_PI);
+    double num_max = sqrt(Np / M_PI);
     double bitween = (R2 - 0.1) / num_max;
-    int    n025 = parameters::Np * 0.25;
+    int    n025 = Np * 0.25;
     int    i, j, k = 0;
     x[0][0] = 0.;
     x[0][1] = 0.;
@@ -93,24 +89,24 @@ void ini_coord_circle(double (*x)[dim]) {
                 x[k + 3 * n025][0] = i * bitween;
                 x[k + 3 * n025][1] = -j * bitween;
                 ++k;
-                if (k >= parameters::Np * 0.25)
+                if (k >= Np * 0.25)
                     break;
             } else {
                 continue;
             }
         }
-        if (k >= parameters::Np * 0.25)
+        if (k >= Np * 0.25)
             break;
     }
 }
 
 void set_diameter(double *a) {
-    for (int i = 0; i < parameters::Np; ++i)
+    for (int i = 0; i < Np; ++i)
         a[i] = 0.5;
 }
 
 void ini_array(double (*x)[dim]) {
-    for (int i = 0; i < parameters::Np; ++i)
+    for (int i = 0; i < Np; ++i)
         for (int j = 0; j < dim; ++j)
             x[i][j] = 0.0;
 }
@@ -120,13 +116,13 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
     double dx, dy, dr2, dUr, w2, w6, /*w12,*/ aij;
     ini_array(f);
 
-    for (int i = 0; i < parameters::Np; ++i)
+    for (int i = 0; i < Np; ++i)
         for (int j = 1; j <= list[i][0]; ++j) {
             dx = x[i][0] - x[list[i][j]][0];
             dy = x[i][1] - x[list[i][j]][1];
 
             dr2 = dx * dx + dy * dy;
-            if (dr2 < parameters::cut2) {
+            if (dr2 < cut2) {
                 aij = (a[i] + a[list[i][j]]);
                 w2 = aij * aij / dr2;
                 w6 = w2 * w2 * w2;
@@ -145,7 +141,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     double ddt = 0.0000001, D = sqrt(2. * ddt / 0.01), ri, riw, aij, w2, w6,
            dUr, fiw[dim], sinco[2];
     calc_force(x, f, a, list);
-    for (int i = 0; i < parameters::Np; i++) {
+    for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
         // /*force bitween wall;
@@ -161,7 +157,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         }
         // till here*/
         theta_i[i] += D * gaussian_rand();
-        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sinco);
         v[i][0] = sinco[0] + f[i][0] + fiw[0];
         v[i][1] = sinco[1] + f[i][1] + fiw[1];
@@ -174,7 +170,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     double        ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
     static double D = sqrt(2. * dt / 0.01);
     calc_force(x, f, a, list);
-    for (int i = 0; i < parameters::Np; i++) {
+    for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
         // /*force bitween wall;
@@ -189,8 +185,8 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
             fiw[1] = dUr * x[i][1];
         }
         // till here*/
-        theta_i[i] += D * gaussian_rand() + parameters::Mg;
-        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
+        theta_i[i] += D * gaussian_rand() + Mg;
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
         v[i][0] = 5. * sico[0] + f[i][0] + fiw[0];
         v[i][1] = 5. * sico[1] + f[i][1] + fiw[1];
@@ -204,7 +200,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     double              ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
     const static double D = sqrt(2. * dt / tau);
     calc_force(x, f, a, list);
-    for (int i = 0; i < parameters::Np; i++) {
+    for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
         // /*force bitween wall;
@@ -219,8 +215,8 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
             fiw[1] = dUr * x[i][1];
         }
         // till here*/
-        theta_i[i] += D * gaussian_rand() + parameters::Mg;
-        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * parameters::M_PI2;
+        theta_i[i] += D * gaussian_rand() + Mg;
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
         v[i][0] = v0 * sico[0] + f[i][0] + fiw[0];
         v[i][1] = v0 * sico[1] + f[i][1] + fiw[1];
@@ -242,7 +238,7 @@ void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
     double              v_t, dr;
     const static double bunbo = 1. / (floor(tmax / dt));
     int                 histint;
-    for (int i = 0; i < parameters::Np; ++i) {
+    for (int i = 0; i < Np; ++i) {
         dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
         v_t = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / (dr * dr);
         if (dr < R) {
@@ -262,7 +258,7 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
-    for (int i = 0; i < parameters::Np; ++i) {
+    for (int i = 0; i < Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
              << "\t" << v[i][1] << endl;
     }
@@ -277,7 +273,7 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
-    for (int i = 0; i < parameters::Np; ++i) {
+    for (int i = 0; i < Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
              << "\t" << v[i][1] << endl;
     }
@@ -294,7 +290,7 @@ void out_setup() {
     file << "cut" << cut << endl;
     file << "skin" << skin << endl;
     file << "Nn" << Nn << endl;
-    file << "parameters::Np=" << parameters::Np << endl;
+    file << "Np=" << Np << endl;
     file << "tmax=" << tmax << endl;
     file << "tmaxlg=" << tmaxlg << endl;
     file << "v0=" << v0 << endl;
@@ -323,7 +319,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
     if (lohist[0] != 0.) {
         file << (rsyou + 1.) * 0.5 << "\t" << (hist[0] / lohist[0]) << endl;
 
-        v_theta += hist[0] * parameters::Np_1;
+        v_theta += hist[0] * Np_1;
     } else {
         file << (rsyou + 1.) * 0.5 << "\t" << 0 << endl;
     }
@@ -331,7 +327,7 @@ void outputhist(double *hist, int counthistv_theta, double *lohist,
         if (lohist[i] != 0.) {
             file << i + rsyou + 0.5 << "\t" << (hist[i] / lohist[i]) << endl;
 
-            v_theta += hist[i] * parameters::Np_1;
+            v_theta += hist[i] * Np_1;
         } else {
             file << i + rsyou + 0.5 << "\t" << 0 << endl;
         }
@@ -379,12 +375,12 @@ void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
                double (*v)[dim], double *xcor, double *vcor, int k,
                double *msd) {
     double dr;
-    for (int i = 0; i < parameters::Np; ++i) {
+    for (int i = 0; i < Np; ++i) {
         for (int j = 0; j < dim; ++j) {
-            xcor[k] += x0[i][j] * x[i][j] * parameters::Np_1;
-            vcor[k] += v1[i][j] * v[i][j] * parameters::Np_1;
+            xcor[k] += x0[i][j] * x[i][j] * Np_1;
+            vcor[k] += v1[i][j] * v[i][j] * Np_1;
             dr = x[i][j] - x0[i][j];
-            msd[k] += dr * dr * parameters::Np_1;
+            msd[k] += dr * dr * Np_1;
         }
     }
 }
@@ -421,17 +417,17 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
 }
 
 void cell_list(int (*list)[Nn], double (*x)[dim]) {
-    int i, j, k, l, m, lm, mm, map_index, km, nx[parameters::Np][2];
+    int              i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
     constexpr double thresh2 = (cut + skin) * (cut + skin), bit = M / (2. * R);
     double           dx, dy;
     constexpr int    m2 = M * M;
-    int(*map)[parameters::Np] = new int[m2][parameters::Np];
+    int(*map)[Np] = new int[m2][Np];
 
     for (i = 0; i < M; ++i)
         for (j = 0; j < M; ++j)
             map[i + M * j][0] = 0;
 
-    for (i = 0; i < parameters::Np; ++i) {
+    for (i = 0; i < Np; ++i) {
         nx[i][0] = (int) ((x[i][0] + R) * bit);
         nx[i][1] = (int) ((x[i][1] + R) * bit);
         for (m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, M - 1); m <= mm;
@@ -445,7 +441,7 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
         }
     }
 
-    for (i = 0; i < parameters::Np; ++i) {
+    for (i = 0; i < Np; ++i) {
         list[i][0] = 0;
         // nx = (int)((x[i][0]+R) * bit);
         // ny = (int)((x[i][1]+R) * bit);
@@ -467,7 +463,7 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
     delete[] map;
 }
 void update(double (*x_update)[dim], double (*x)[dim]) {
-    for (int i = 0; i < parameters::Np; i++)
+    for (int i = 0; i < Np; i++)
         for (int j = 0; j < dim; j++)
             x_update[i][j] = x[i][j];
 }
@@ -476,7 +472,7 @@ void calc_disp_max(double *disp_max, double (*x)[dim],
                    double (*x_update)[dim]) {
     double dx, dy;
     double disp;
-    for (int i = 0; i < parameters::Np; i++) {
+    for (int i = 0; i < Np; i++) {
         dx = x[i][0] - x_update[i][0];
         dy = x[i][1] - x_update[i][1];
 
@@ -504,12 +500,10 @@ void auto_list_update(double *disp_max, double (*x)[dim],
 int main() {
     std::chrono::system_clock::time_point start, end; // 型は auto で可
     start = std::chrono::system_clock::now();         // 計測開始時間
-    double x[parameters::Np][dim], v[parameters::Np][dim],
-        theta[parameters::Np], a[parameters::Np], f[parameters::Np][dim],
-        x0[parameters::Np][dim], v1[parameters::Np][dim],
-        x_update[parameters::Np][dim], disp_max = 0.;
-    // int(*list)[Nn] = new int[parameters::Np][Nn];
-    int    list[parameters::Np][Nn];
+    double x[Np][dim], v[Np][dim], theta[Np], a[Np], f[Np][dim], x0[Np][dim],
+        v1[Np][dim], x_update[Np][dim], disp_max = 0.;
+    // int(*list)[Nn] = new int[Np][Nn];
+    int    list[Np][Nn];
     int    counthistv_theta = 0, countout = 0;
     int    Nphist = (int) (R + 1.);
     double hist[Nphist], lohist[Nphist], hist2[Nphist];
@@ -520,7 +514,7 @@ int main() {
     ini_coord_circle(x);
     ini_array(v);
     ini_array(f);
-    ini_hist(theta, parameters::Np);
+    ini_hist(theta, Np);
     ini_hist(hist, Nphist);
     ini_hist(lohist, Nphist);
     ini_hist(hist2, Nphist);
@@ -559,7 +553,7 @@ int main() {
         eom_abp9(v, x, f, a, list, theta);
     }
     j = 0;
-    for (int ch = 0; ch < parameters::Np; ch++) {
+    for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in kasanari" << ch << endl;
@@ -573,7 +567,7 @@ int main() {
         auto_list_update(&disp_max, x, x_update, list);
         eom_abp8(v, x, f, a, list, theta);
     }
-    for (int ch = 0; ch < parameters::Np; ch++) {
+    for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in kakimaze" << ch << endl;
@@ -588,7 +582,7 @@ int main() {
         auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
     }
-    for (int ch = 0; ch < parameters::Np; ch++) {
+    for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
             output(-1, v, x, -1);
             std::cout << "hazure in owari" << ch << endl;
@@ -599,7 +593,7 @@ int main() {
     int ituibi = 0, tauch = tau / dt, tmaxch = tmax / dt,
         tanimaxch = tmaxani / dt, tanibitch = tbitani / dt;
 
-    for (int xnp = 0; xnp < parameters::Np; xnp++) {
+    for (int xnp = 0; xnp < Np; xnp++) {
 
         for (int xdim = 0; xdim < dim; xdim++) {
             x0[xnp][xdim] = x[xnp][xdim];
@@ -662,8 +656,8 @@ int main() {
     }
     int    counthazure = 0, maxnum = 0;
     double ave;
-    for (int i = 0; i < parameters::Np; ++i) {
-        ave += list[i][0] / (double) parameters::Np;
+    for (int i = 0; i < Np; ++i) {
+        ave += list[i][0] / (double) Np;
         if (list[i][0] > maxnum)
             maxnum = list[i][0];
         if (x[i][0] * x[i][0] + x[i][1] * x[i][1] > R * R)
