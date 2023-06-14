@@ -555,15 +555,15 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
 }
 
 void cell_list(int (*list)[Nn], double (*x)[dim]) {
-    int              i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
-    constexpr double thresh2 = (cut + skin) * (cut + skin);
-    double           dx, dy;
-    constexpr double xlen_2 = (2. * R + Rbit * R) / 2.;
-    constexpr int    Mx = (int) (xlen_2 * 2. / (cut + skin));
-    constexpr int    My = (int) (2. * R / (cut + skin)); // M<=2R/(cut+skin)
-    constexpr int    m2 = Mx * My;
-    constexpr double R2 = 2. * R, bitx = Mx / (xlen_2 * 2.),
-                     bity = My / (R2); // ひとつのせるの幅の逆数;
+    int                     i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
+    static constexpr double thresh2 = (cut + skin) * (cut + skin);
+    double                  dx, dy;
+    static constexpr double xlen_2 = (2. * R + Rbit * R) / 2.;
+    static constexpr int    Mx = (int) (xlen_2 * 2. / (cut + skin));
+    static constexpr int My = (int) (2. * R / (cut + skin)); // M<=2R/(cut+skin)
+    static constexpr int m2 = Mx * My;
+    static constexpr double R2 = 2. * R, bitx = Mx / (xlen_2 * 2.),
+                            bity = My / (R2); // ひとつのせるの幅の逆数;
     int(*map)[Np] = new int[m2][Np];
 
     for (i = 0; i < m2; ++i)
@@ -631,7 +631,7 @@ void auto_list_update(double *disp_max, double (*x)[dim],
     // count++;
     constexpr double skin2 = skin * skin * 0.25;
     calc_disp_max(&(*disp_max), x, x_update);
-    if (*disp_max > skin2) {
+    if (*disp_max >= skin2) {
         cell_list(list, x);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
