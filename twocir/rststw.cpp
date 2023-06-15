@@ -1,7 +1,6 @@
 
 #include <chrono>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <math.h>
 #include <stdio.h>
@@ -11,22 +10,22 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo          0.20 // コンパイル時に代入する定数;
-#define Nn          200
-#define R           10. // 固定;// ,0.1より大きいこと;
-#define tmax        12000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      600 // 緩和時間は10たうとする;
-#define Rbit        1.3 // delta/R,Rにすると穴がなくなる;
+#define lo          1. // コンパイル時に代入する定数;
+#define Nn          100
+#define R           20. // 固定;// ,0.1より大きいこと;
+#define tmax        5000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      2000 // 緩和時間は10たうとする;
+// #define Rbit        1.8  // delta/R,Rにすると穴がなくなる;
 #define v0          1.
-#define tau         60. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
+#define tau         40. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define dim         2           // 変えるときはEomを変えること;
 #define cut         1.122462048 // 3.
 #define skin        1.5
-#define dtlg        0.0001
-#define dt          0.0001
+#define dtlg        0.000005
+#define dt          0.000005
 #define folder_name "stw" // 40文字程度で大きすぎ;
 #define msdbit      1.1
 #define msdini      0.01
@@ -107,16 +106,6 @@ bool ini_coord_twocircles(double (*x)[dim]) {
            R2 = R - 0.5; // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
-    /*
-        x[k][0] = 0.5;
-        x[k][1] = 0.5;
-        x[k + nmax][0] = 0.5;
-        x[k + nmax][1] = -0.5;
-        x[k * 2 * nmax][0] = -0.5;
-        x[k + 2 * nmax][1] = 0.5;
-        x[k + 3 * nmax][0] = -0.5;
-        x[k + 3 * nmax][1] = -0.5;
-        k++;*/
     for (int i = 0; i < nmax; i++) {
         for (int j = 0; j < nmax; j++) {
             double r2[2] = {0.5 + i * bit, (0.5 + j * bit)};
@@ -165,14 +154,12 @@ void ini_array(double (*x)[dim]) {
 
 void calc_force(double (*x)[dim], double (*f)[dim], double *a,
                 int (*list)[Nn]) {
-    double dx, dy, dr2, dUr, w2, w6, /*w12,*/ aij;
+    double dx, dy, dr2, dUr, w2, w6, aij /*w12*/;
     ini_array(f);
-
     for (int i = 0; i < Np; ++i)
         for (int j = 1; j <= list[i][0]; ++j) {
             dx = x[i][0] - x[list[i][j]][0];
             dy = x[i][1] - x[list[i][j]][1];
-
             dr2 = dx * dx + dy * dy;
             if (dr2 < cut2) {
                 aij = (a[i] + a[list[i][j]]);
@@ -577,16 +564,14 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
             for (l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, Mx - 1);
                  l <= lm; ++l) {
                 map_index = l + Mx * m;
-                map[map_index][map[map_index][0] + 1] = i;
                 map[map_index][0]++;
+                map[map_index][map[map_index][0]] = i;
             }
         }
     }
 
     for (i = 0; i < Np; ++i) {
         list[i][0] = 0;
-        // nx = (int)((x[i][0]+R) * bit);
-        // ny = (int)((x[i][1]+R) * bit);
         map_index = nx[i][0] + Mx * nx[i][1];
         for (k = 1, km = (map[map_index][0]); k <= km; ++k) {
             j = map[map_index][k];
@@ -618,7 +603,8 @@ void calc_disp_max(double *disp_max, double (*x)[dim],
     for (int i = 0; i < Np; i++) {
         dx = x[i][0] - x_update[i][0];
         dy = x[i][1] - x_update[i][1];
-        if (dx * dx + dy * dy > *disp_max)
+        disp = dx * dx + dy * dy;
+        if (disp > *disp_max)
             *disp_max = disp;
     }
 }
@@ -627,13 +613,13 @@ void auto_list_update(double *disp_max, double (*x)[dim],
                       double (*x_update)[dim], int (*list)[Nn]) {
     // static int count = 0;
     // count++;
-    constexpr double skin2 = skin * skin * 0.25;
+    static constexpr double skin2 = skin * skin * 0.25, skinini = skin2 * 0.9;
     calc_disp_max(&(*disp_max), x, x_update);
     if (*disp_max >= skin2) {
         cell_list(list, x);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
-        *disp_max = 0.0;
+        *disp_max = skinini;
         // count = 0;
     }
 }
@@ -644,18 +630,18 @@ int main() {
     double x[Np][dim], v[Np][dim], theta[Np], a[Np], f[Np][dim], x0[Np][dim],
         v1[Np][dim], x_update[Np][dim], disp_max = 0.;
     // int(*list)[Nn] = new int[Np][Nn];
-    int    list[Np][Nn];
-    int    counthistv_theta = 0, countout = 0;
-    int    Nphist = (int) (R + 1.);
-    double hist[Nphist], lohist[Nphist], hist2[Nphist];
-    double tout = msdini, toutcoord = 0;
-
-    int j = 0, k = 0, kcoord = 0;
+    int           list[Np][Nn];
+    int           counthistv_theta = 0, countout = 0;
+    int           Nphist = (int) (R + 1.);
+    double        hist[Nphist], lohist[Nphist], hist2[Nphist];
+    double        tout = msdini, toutcoord = 0;
+    long long int j = 0;
+    int           k = 0, kcoord = 0;
     set_diameter(a);
     if (!ini_coord_twocircles(x))
         return -1;
     ini_array(v);
-
+    ini_array(x_update);
     ini_array(f);
     ini_hist(theta, Np);
     ini_hist(hist, Nphist);
@@ -741,9 +727,8 @@ int main() {
         }
     }
     std::cout << "passed owari!" << endl;
-    int ituibi = 0, tauch = tau / dt, tmaxch = tmax / dt,
-        tanimaxch = tmaxani / dt, tanibitch = tbitani / dt;
-
+    int           ituibi = 0, tauch = tau / dt, tanibitch = tbitani / dt;
+    long long int tmaxch = tmax / dt, tanimaxch = tmaxani / dt;
     for (int xnp = 0; xnp < Np; xnp++) {
 
         for (int xdim = 0; xdim < dim; xdim++) {
@@ -815,15 +800,12 @@ int main() {
             counthazure++;
     }
     end = std::chrono::system_clock::now(); // 計測終了時間
-    char filename[128];
-
+    char     filename[128];
     ofstream file;
-
     snprintf(filename, 128,
              "./%sR%.1flo%.2ftau%.3fm%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
              folder_name, R, lo, tau, mgn, Rbit, v0, lo, mgn);
     file.open(filename, std::ios::app); // append
-
     file << counthistv_theta << " " << counthazure << " " << ave << " "
          << maxnum << " " << endl;
     file << std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
