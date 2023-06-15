@@ -10,12 +10,12 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo          1. // コンパイル時に代入する定数;
+#define lo          0.1 // コンパイル時に代入する定数;
 #define Nn          100
 #define R           20. // 固定;// ,0.1より大きいこと;
 #define tmax        5000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      2000 // 緩和時間は10たうとする;
-// #define Rbit        1.8  // delta/R,Rにすると穴がなくなる;
+#define Rbit        1.8  // delta/R,Rにすると穴がなくなる;
 #define v0          1.
 #define tau         40. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
@@ -102,7 +102,9 @@ inline double dist2left(double *x) {
 }
 
 bool ini_coord_twocircles(double (*x)[dim]) {
-    double bit = 1 / (lo * M_PI),
+    double rbbit=rbit_2-0.15,bit = sqrt((R * R *
+     (M_PI - usr_arccos(rbbit) + rbbit * usr_sqrt(1 - rbbit * rbbit))) *
+    2./Np),
            R2 = R - 0.5; // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
@@ -126,7 +128,6 @@ bool ini_coord_twocircles(double (*x)[dim]) {
         if (k >= nmax)
             break;
     }
-
     for (int i = 0; i < namari; i++) {
         x[i + 4 * nmax][0] = (double) i;
         x[i + 4 * nmax][1] = 0.;
