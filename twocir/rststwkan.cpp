@@ -12,10 +12,10 @@
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define lo          0.1 // コンパイル時に代入する定数;
 #define Nn          100
-#define R           20. // 固定;// ,0.1より大きいこと;
-#define tmax        5000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      2000 // 緩和時間は10たうとする;
-#define Rbit        1.8  // delta/R,Rにすると穴がなくなる;
+#define R           10. // 固定;// ,0.1より大きいこと;
+#define tmax        500 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      800 // 緩和時間は10たうとする;
+#define Rbit        1.8 // delta/R,Rにすると穴がなくなる;
 #define v0          1.
 #define tau         40. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
@@ -24,12 +24,12 @@
 #define dim         2           // 変えるときはEomを変えること;
 #define cut         1.122462048 // 3.
 #define skin        1.5
-#define dtlg        0.000005
-#define dt          0.000005
-#define folder_name "stw" // 40文字程度で大きすぎ;
+#define dtlg        0.0001
+#define dt          0.000001
+#define folder_name "stwmss" // 40文字程度で大きすぎ;
 #define msdbit      1.1
 #define msdini      0.01
-#define M_ss    80
+#define M_ss        20
 // #define polydispersity 0.2 コードも変える;
 using std::endl;
 using std::max;
@@ -103,9 +103,11 @@ inline double dist2left(double *x) {
 }
 
 bool ini_coord_twocircles(double (*x)[dim]) {
-    double rbbit=rbit_2-0.15,bit = sqrt((R * R *
-     (M_PI - usr_arccos(rbbit) + rbbit * usr_sqrt(1 - rbbit * rbbit))) *
-    2./Np),
+    double rbbit = rbit_2 - 0.15,
+           bit = sqrt((R * R *
+                       (M_PI - usr_arccos(rbbit) +
+                        rbbit * usr_sqrt(1 - rbbit * rbbit))) *
+                      2. / Np),
            R2 = R - 0.5; // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
@@ -179,7 +181,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
 
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
-    double           ri, riw, aij, w2, w6, dUr, fiw[dim], sinco[2];
+    double           vi[2], ri, riw, aij, w2, w6, dUr, fiw[dim], sinco[2];
     constexpr double ddt = 0.0000001, D = usr_sqrt(2. * ddt / 0.01);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
@@ -194,7 +196,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
@@ -205,7 +207,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_left);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
@@ -223,16 +225,18 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sinco);
-        v[i][0] = sinco[0] + f[i][0] + fiw[0];
-        v[i][1] = sinco[1] + f[i][1] + fiw[1];
-        x[i][0] += v[i][0] * ddt;
-        x[i][1] += v[i][1] * ddt;
+        vi[0] = sinco[0] + f[i][0] + fiw[0];
+        vi[1] = sinco[1] + f[i][1] + fiw[1];
+        x[i][0] += vi[0] * ddt;
+        x[i][1] += vi[1] * ddt;
     }
 }
-void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
-              int (*list)[Nn], double *theta_i) {
-    double                  ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
-    constexpr static double D = usr_sqrt(2. * dt / 0.01);
+
+void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
+                  double *a, int (*list)[Nn]) {
+    double zeta = 1.0;
+    double fluc = sqrt(8. * zeta * dt);
+    double vi[2], ri, riw, aij, w2, w6, dUr, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -246,7 +250,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
@@ -257,7 +261,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_left);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
@@ -271,21 +275,18 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 fiw[1] = dUr * x[i][1];
             }
         }
-        // till here*/
-        theta_i[i] += D * gaussian_rand() + Mg;
-        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        usr_sincos(theta_i[i], sico);
-        v[i][0] = 5. * sico[0] + f[i][0] + fiw[0];
-        v[i][1] = 5. * sico[1] + f[i][1] + fiw[1];
-        x[i][0] += v[i][0] * dt;
-        x[i][1] += v[i][1] * dt;
+        for (int j = 0; j < dim; j++) {
+            v[i][j] += -zeta * v[i][j] * dt + f[i][j] * dt + fiw[j] * dt +
+                       fluc * gaussian_rand();
+            x[i][j] += v[i][j] * dt;
+        }
     }
 }
 
 void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double                  ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
-    constexpr static double D = usr_sqrt(2. * dt / tau),M_inv=dt/M_ss;
+    constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / M_ss;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -299,7 +300,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
@@ -310,7 +311,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_left);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
@@ -328,8 +329,8 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
-        v[i][0] += (v0 * sico[0] + f[i][0] + fiw[0])*M_inv;
-        v[i][1] += (v0 * sico[1] + f[i][1] + fiw[1])*M_inv;
+        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fiw[0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fiw[1]) * M_inv;
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
@@ -542,8 +543,9 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     }
     file.close();
 }
-
-void cell_list(int (*list)[Nn], double (*x)[dim]) {
+inline double usr_max(double a, double b) { return (a > b) ? a : b; }
+inline double usr_min(double a, double b) { return (a > b) ? b : a; }
+void          cell_list(int (*list)[Nn], double (*x)[dim]) {
     int                     i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
     static constexpr double thresh2 = (cut + skin) * (cut + skin);
     double                  dx, dy;
@@ -561,9 +563,10 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
     for (i = 0; i < Np; ++i) {
         nx[i][0] = (int) ((x[i][0] + xlen_2) * bitx);
         nx[i][1] = (int) ((x[i][1] + R) * bity);
-        for (m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, My - 1); m <= mm;
-             ++m) {
-            for (l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, Mx - 1);
+        for (m = usr_max(nx[i][1] - 1, 0), mm = usr_min(nx[i][1] + 1, My - 1);
+             m <= mm; ++m) {
+            for (l = usr_max(nx[i][0] - 1, 0),
+                lm = usr_min(nx[i][0] + 1, Mx - 1);
                  l <= lm; ++l) {
                 map_index = l + Mx * m;
                 map[map_index][0]++;
@@ -615,7 +618,7 @@ void auto_list_update(double *disp_max, double (*x)[dim],
                       double (*x_update)[dim], int (*list)[Nn]) {
     // static int count = 0;
     // count++;
-    static constexpr double skin2 = skin * skin * 0.25, skinini = skin2 * 0.9;
+    static constexpr double skin2 = skin * skin * 0.25, skinini = skin2 * 0.8;
     calc_disp_max(&(*disp_max), x, x_update);
     if (*disp_max >= skin2) {
         cell_list(list, x);
@@ -698,11 +701,11 @@ int main() {
         }
     }
     std::cout << "passed kasanari!" << endl;
-    int tmaxbefch = R / (dt * 5);
+    int tmaxbefch = R / (dtlg * 5);
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp8(v, x, f, a, list, theta);
+        eom_langevin(v, x, f, a, list);
     }
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
