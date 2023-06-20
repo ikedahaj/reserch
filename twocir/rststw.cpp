@@ -10,12 +10,12 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo          0.1 // コンパイル時に代入する定数;
+#define lo          1. // コンパイル時に代入する定数;
 #define Nn          100
 #define R           20. // 固定;// ,0.1より大きいこと;
 #define tmax        5000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      2000 // 緩和時間は10たうとする;
-#define Rbit        1.8  // delta/R,Rにすると穴がなくなる;
+// #define Rbit        1.8  // delta/R,Rにすると穴がなくなる;
 #define v0          1.
 #define tau         40. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
@@ -69,6 +69,7 @@ static constexpr double Np_1 = 1. / Npd;
 static constexpr double center_left = -Rbit * 0.5 * R;
 static constexpr double center_rignt = Rbit * 0.5 * R;
 static constexpr double x0limit = R * usr_sqrt(1 - Rbit * Rbit * 0.25);
+
 
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
                                           // 制度は10^-13程度;
@@ -193,7 +194,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
@@ -204,7 +205,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_left);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
@@ -218,6 +219,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 fiw[1] = dUr * x[i][1];
             }
         }
+        
         // till here*/
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
@@ -245,7 +247,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
@@ -256,7 +258,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_left);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
@@ -289,7 +291,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
-        // /*force bitween wall;
+                // /*force bitween wall;
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
@@ -298,7 +300,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
@@ -309,7 +311,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
-                fiw[0] = dUr * x[i][0];
+                fiw[0] = dUr * (x[i][0]-center_left);
                 fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
