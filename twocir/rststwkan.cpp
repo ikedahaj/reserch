@@ -702,50 +702,49 @@ int main() {
                 tout *= msdbit;
             }
         }
-        while (j < tmaxch) {
-            ++j;
-            auto_list_update(&disp_max, x, x_update, list);
-            eom_abp1(v, x, f, a, list, theta);
-            // make_v_thetahist(x, v, hist, hist2, lohist);
-            /*
-                    if (j >= toutcoord) {
-                        output(j, v, x, k);
-                        // outtuibi(x, toutcoord, v, ituibi);
-                        toutcoord += tauch;
-                        ++k;
-                    }//*/
-            if (j >= tout) {
-                calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
-                t[kcoord] = j * dt;
-                ++kcoord;
-                tout *= msdbit;
-            }
-        }
-        int    counthazure = 0, maxnum = 0;
-        double ave;
-        for (int i = 0; i < Np; ++i) {
-            ave += list[i][0] / (double) Np;
-            if (list[i][0] > maxnum)
-                maxnum = list[i][0];
-            if (x[i][0] * x[i][0] + x[i][1] * x[i][1] > R * R)
-                counthazure++;
-        }
-        end = std::chrono::system_clock::now(); // 計測終了時間
-        char     filename[128];
-        ofstream file;
-        snprintf(
-            filename, 128,
-            "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
-            folder_name, R, lo, mass, tau, Rbit, v0, lo, mgn);
-        file.open(filename, std::ios::app); // append
-        file << counthistv_theta << " " << counthazure << " " << ave << " "
-             << maxnum << " " << endl;
-        file << std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                      start)
-                    .count()
-             << endl; // 処理に要した時間をミリ秒に変換
-        file.close();
-        outputcorr(msd, vcor, t, countout, msd2);
-        std::cout << "done" << endl;
-        return 0;
     }
+    while (j < tmaxch) {
+        ++j;
+        auto_list_update(&disp_max, x, x_update, list);
+        eom_abp1(v, x, f, a, list, theta);
+        // make_v_thetahist(x, v, hist, hist2, lohist);
+        /*
+                if (j >= toutcoord) {
+                    output(j, v, x, k);
+                    // outtuibi(x, toutcoord, v, ituibi);
+                    toutcoord += tauch;
+                    ++k;
+                }//*/
+        if (j >= tout) {
+            calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
+            t[kcoord] = j * dt;
+            ++kcoord;
+            tout *= msdbit;
+        }
+    }
+    int    counthazure = 0, maxnum = 0;
+    double ave;
+    for (int i = 0; i < Np; ++i) {
+        ave += list[i][0] / (double) Np;
+        if (list[i][0] > maxnum)
+            maxnum = list[i][0];
+        if (x[i][0] * x[i][0] + x[i][1] * x[i][1] > R * R)
+            counthazure++;
+    }
+    end = std::chrono::system_clock::now(); // 計測終了時間
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0, lo, mgn);
+    file.open(filename, std::ios::app); // append
+    file << counthistv_theta << " " << counthazure << " " << ave << " "
+         << maxnum << " " << endl;
+    file << std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+                .count()
+         << endl; // 処理に要した時間をミリ秒に変換
+    file.close();
+    outputcorr(msd, vcor, t, countout, msd2);
+    std::cout << "done" << endl;
+    return 0;
+}
