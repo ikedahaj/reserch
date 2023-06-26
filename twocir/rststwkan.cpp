@@ -64,6 +64,8 @@ static constexpr double Npd =
     2.;
 static constexpr int    Np = Npd;
 static constexpr double cut2 = cut * cut;
+static constexpr double cut2_1 = 1. / cut2;
+static constexpr double cut_1 = 1. / cut;
 static constexpr double M_PI2 = 2. * M_PI;
 static constexpr double Mg = mgn * dt;
 static constexpr double Np_1 = 1. / Npd;
@@ -165,9 +167,10 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
             dx = x[i][0] - x[list[i][j]][0];
             dy = x[i][1] - x[list[i][j]][1];
             dr2 = dx * dx + dy * dy;
-            if (dr2 < cut2) {
-                aij = (a[i] + a[list[i][j]]);
-                w2 = aij * aij / dr2;
+            aij = (a[i] + a[list[i][j]]);
+            w2 = aij * aij / dr2;
+            if (cut2_1 < w2) {
+
                 w6 = w2 * w2 * w2;
                 // w12 = w6 * w6;
                 dUr = (-48. * w6 + 24.) * w6 / dr2 /* -12. * w12 / dr2*/;
@@ -181,7 +184,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
 
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
-    double           vi[2], ri, riw, aij, w2, w6, dUr, fiw[dim], sinco[2];
+    double           vi[2], ri, riw, aij, w1, w2, w6, dUr, fiw[dim], sinco[2];
     constexpr double ddt = 0.0000001, D = usr_sqrt(2. * ddt / 0.01);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
@@ -191,9 +194,10 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -203,9 +207,10 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -215,9 +220,10 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
             riw = x0limit + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -239,7 +245,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                   double *a, int (*list)[Nn]) {
     double zeta = 1.0;
     double fluc = sqrt(8. * zeta * dt);
-    double vi[2], ri, riw, aij, w2, w6, dUr, fiw[dim];
+    double vi[2], ri, riw, aij, w1, w2, w6, dUr, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -248,9 +254,10 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -260,9 +267,10 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -272,9 +280,10 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
             riw = x0limit + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -291,7 +300,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 
 void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    double                  ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
+    double                  ri, riw, aij, w1, w2, w6, dUr, fiw[dim], sico[2];
     constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
@@ -301,9 +310,10 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -313,9 +323,10 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -325,9 +336,10 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
             riw = x0limit + 0.5 - ri;
-            if (riw < cut) {
-                aij = 0.5 + a[i];
-                w2 = aij * aij / (riw * riw);
+            aij = 0.5 + a[i];
+            w1 = aij / riw;
+            if (cut_1 < w1) {
+                w2 = w1 * w1;
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
@@ -350,26 +362,71 @@ void ini_hist(double *hist, int Nhist) {
         hist[i] = 0.;
     }
 }
-
-void output(int k, double (*v)[dim], double (*x)[dim]) {
+void output_ini(double (*v)[dim], double (*x)[dim], double *a) {
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "tyokkei.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0);
+    file.open(filename /* std::ios::app*/); // append
+    file << tmaxani << endl;
+    for (int i = 0; i < Np; i++)
+        file << a[i] * 2. << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%sR%.1f_coorlo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t0.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    for (int i = 0; i < Np; ++i) {
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+             << endl;
+    }
+    file.close();
+}
+void output(double (*v)[dim], double (*x)[dim]) {
     static int l = 0;
     char       filename[128];
     ofstream   file;
+
     snprintf(filename, 128,
              "./%sR%.1f_coorlo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
              folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
     for (int i = 0; i < Np; ++i) {
-        file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
-             << "\t" << v[i][1] << endl;
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+             << endl;
     }
     file.close();
     l++;
 }
-
-void output_ani(int k, double (*v)[dim], double (*x)[dim]) {
-    static int l = 0;
+void output_iniani(double (*v)[dim], double (*x)[dim], double *a) {
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "tyokkei.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0);
+    file.open(filename /* std::ios::app*/); // append
+    file << tmaxani << endl;
+    for (int i = 0; i < Np; i++)
+        file << a[i] * 2. << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t0.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
+    file.open(filename /* std::ios::app*/); // append
+    for (int i = 0; i < Np; ++i) {
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+             << endl;
+    }
+    file.close();
+}
+void output_ani(double (*v)[dim], double (*x)[dim]) {
+    static int l = 1;
     char       filename[128];
     ofstream   file;
 
@@ -379,8 +436,8 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim]) {
              folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
-        file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
-             << "\t" << v[i][1] << endl;
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+             << endl;
     }
     file.close();
     l++;
@@ -467,14 +524,15 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
 }
 inline double usr_max(double a, double b) { return (a > b) ? a : b; }
 inline double usr_min(double a, double b) { return (a > b) ? b : a; }
-void          cell_list(int (*list)[Nn], double (*x)[dim]) {
+void          cell_list(int (*list)[Nn], double (*x)[dim], double *a) {
     int                     i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
-    static constexpr double thresh2 = (cut + skin) * (cut + skin);
+    static constexpr double cutmax = cut * (1. + polydispersity);
     double                  dx, dy;
     static constexpr double xlen_2 = (2. * R + Rbit * R) / 2.;
-    static constexpr int    Mx = (int) (xlen_2 * 2. / (cut + skin));
-    static constexpr int My = (int) (2. * R / (cut + skin)); // M<=2R/(cut+skin)
-    static constexpr int m2 = Mx * My;
+    static constexpr int    Mx = (int) (xlen_2 * 2. / (cutmax + skin));
+    static constexpr int    My =
+        (int) (2. * R / (cutmax + skin)); // M<=2R/(cutmax+skin)
+    static constexpr int    m2 = Mx * My;
     static constexpr double R2 = 2. * R, bitx = Mx / (xlen_2 * 2.),
                             bity = My / (R2); // ひとつのせるの幅の逆数;
     int(*map)[Np] = new int[m2][Np];
@@ -496,7 +554,7 @@ void          cell_list(int (*list)[Nn], double (*x)[dim]) {
             }
         }
     }
-
+    double aij;
     for (i = 0; i < Np; ++i) {
         list[i][0] = 0;
         map_index = nx[i][0] + Mx * nx[i][1];
@@ -507,7 +565,9 @@ void          cell_list(int (*list)[Nn], double (*x)[dim]) {
                 dy = x[i][1] - x[j][1];
                 // dx-=L*floor((dx+0.5*L)/L);
                 // dy-=L*floor((dy+0.5*L)/L);
-                if ((dx * dx + dy * dy) < thresh2) {
+                aij = a[i] + a[j];
+                if ((dx * dx + dy * dy) <
+                    ((cut * aij + skin) * (cut * aij + skin))) {
                     list[i][0]++;
                     list[i][list[i][0]] = j;
                 }
@@ -537,13 +597,13 @@ void calc_disp_max(double *disp_max, double (*x)[dim],
 }
 
 void auto_list_update(double *disp_max, double (*x)[dim],
-                      double (*x_update)[dim], int (*list)[Nn]) {
+                      double (*x_update)[dim], int (*list)[Nn],double *a) {
     // static int count = 0;
     // count++;
-    static constexpr double skin2 = skin * skin * 0.25, skinini = skin2 * 0.8;
+    static constexpr double skin2 = skin * skin * 0.25, skinini = skin2 * 0.9;
     calc_disp_max(&(*disp_max), x, x_update);
     if (*disp_max >= skin2) {
-        cell_list(list, x);
+        cell_list(list, x,a);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
         *disp_max = skinini;
@@ -563,7 +623,6 @@ int main() {
     unsigned long long int j = 0;
     int                    k = 0, kcoord = 0;
     set_diameter(a);
-
     if (!ini_coord_twocircles(x))
         return -1;
     ini_array(v);
@@ -583,15 +642,7 @@ int main() {
              folder_name, R, lo, mass, tau, Rbit, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
-    char     filename[128];
-    ofstream file;
-    snprintf(filename, 128,
-             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "tyokkei.dat",
-             folder_name, R, lo, mass, tau, Rbit, v0);
-    file.open(filename /* std::ios::app*/); // append
-    for (int i = 0; i < Np; i++)
-        file << a[i] * 2. << endl;
+
     if (!out_setup()) {
         std::cout << "file name is too long" << endl;
         return -1;
@@ -614,14 +665,14 @@ int main() {
 
     while (j < 1e7) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        auto_list_update(&disp_max, x, x_update, list,a);
         eom_abp9(v, x, f, a, list, theta, j);
     }
     j = 0;
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
-            output(-1, v, x);
+            output_ini(v, x,a);
             std::cout << "hazure in kasanari" << ch << endl;
             // return -1;
         }
@@ -630,13 +681,13 @@ int main() {
     int tmaxbefch = R / (dtlg * 5);
     while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        auto_list_update(&disp_max, x, x_update, list,a);
         eom_langevin(v, x, f, a, list);
     }
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
-            output(-1, v, x);
+            output_ini( v, x,a);
             std::cout << "hazure in kakimaze" << ch << endl;
             return -1;
         }
@@ -646,13 +697,13 @@ int main() {
     tmaxbefch = tmaxlg / dt;
     while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        auto_list_update(&disp_max, x, x_update, list,a);
         eom_abp1(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
-            output(-1, v, x);
+            output_ini( v, x,a);
             std::cout << "hazure in owari" << ch << endl;
             return -1;
         }
@@ -678,21 +729,21 @@ int main() {
     calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
     t[0] = 0.;
     ++kcoord;
-    output(j, v, x);
+    output_ini( v, x,a);
+    output_iniani(v,x,a);
     ++k;
     while (j < tanimaxch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        auto_list_update(&disp_max, x, x_update, list,a);
         eom_abp1(v, x, f, a, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
-            output_ani(j, v, x);
+            output_ani( v, x);
             kanit += tanibitch;
             /*
             if (j >= toutcoord) {
-                output(j, v, x, k);
+                output( v, x, a);
                 toutcoord += tauch;
-                ++k;
             }
         }//*/
             if (j >= tout) {
@@ -705,15 +756,14 @@ int main() {
     }
     while (j < tmaxch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        auto_list_update(&disp_max, x, x_update, list,a);
         eom_abp1(v, x, f, a, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
         /*
                 if (j >= toutcoord) {
-                    output(j, v, x, k);
+                    output( v, x, a);
                     // outtuibi(x, toutcoord, v, ituibi);
                     toutcoord += tauch;
-                    ++k;
                 }//*/
         if (j >= tout) {
             calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
@@ -732,18 +782,18 @@ int main() {
             counthazure++;
     }
     end = std::chrono::system_clock::now(); // 計測終了時間
-    char     filename[128];
-    ofstream file;
+    char filename[128] ;
+    ofstream file2;
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
              folder_name, R, lo, mass, tau, Rbit, v0, lo, mgn);
-    file.open(filename, std::ios::app); // append
-    file << counthistv_theta << " " << counthazure << " " << ave << " "
-         << maxnum << " " << endl;
-    file << std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-                .count()
-         << endl; // 処理に要した時間をミリ秒に変換
-    file.close();
+    file2.open(filename, std::ios::app); // append
+    file2 << counthistv_theta << " " << counthazure << " " << ave << " "
+          << maxnum << " " << endl;
+    file2 << std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+                 .count()
+          << endl; // 処理に要した時間をミリ秒に変換
+    file2.close();
     outputcorr(msd, vcor, t, countout, msd2);
     std::cout << "done" << endl;
     return 0;
