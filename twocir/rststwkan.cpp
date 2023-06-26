@@ -244,9 +244,9 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 }
 
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
-                  double *a, int (*list)[Nn]) {
-    static constexpr double zeta = 1.0;
-    static constexpr double fluc = usr_sqrt(8. * zeta * dtlg);
+                  double *a, int (*list)[Nn],double temmp) {
+     double zeta = 1.0;
+     double fluc = usr_sqrt(temmp * zeta * dtlg);
     double                  vi[2], ri, riw, aij, w1, w2, w6, dUr, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
@@ -470,6 +470,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "自動Np" << endl;
     file << "x=0での壁を追加" << endl;
     file << "modNp" << endl;
+    file<<"polydispersity"<<polydispersity<<endl;
     file.close();
     if (test == -1)
         return false;
@@ -681,10 +682,15 @@ int main() {
     }
     std::cout << "passed kasanari!" << endl;
     int tmaxbefch = R / (dtlg * 5);
+    while (j < tmaxbefch*0.5) {
+        ++j;
+        auto_list_update(&disp_max, x, x_update, list, a);
+        eom_langevin(v, x, f, a, list,10);
+    }
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list, a);
-        eom_langevin(v, x, f, a, list);
+        eom_langevin(v, x, f, a, list,1);
     }
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
