@@ -10,15 +10,9 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo             0.7 // コンパイル時に代入する定数;
 #define Nn             50
-#define R              10. // 固定;// ,0.1より大きいこと;
 #define tmax           500 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg         800 // 緩和時間は10たうとする;
-#define Rbit           1.8 // delta/R,Rにすると穴がなくなる;
-#define v0             1.
-#define tau            40. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
-#define mgn            0. // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani        500 //>tmaxの時プログラムを変更すること;
 #define tbitani        1
 #define dim            2           // 変えるときはEomを変えること;
@@ -29,13 +23,21 @@
 #define folder_name    "stwmss" // 40文字程度で大きすぎ;
 #define msdbit         1.1
 #define msdini         0.01
-#define mass           20
 #define polydispersity 0.3 // コードも変える;
 using std::endl;
 using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
+#define lo   0.7 // コンパイル時に代入する定数;
+#define Rbit 1.8 // delta/R,Rにすると穴がなくなる;//
+// コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
+#define v0 1.
+
+static constexpr double tau = 40.;
+static constexpr double mass = 20.;
+static constexpr double mgn = 0.;
+static constexpr double R = 10.; // 固定;// ,0.1より大きいこと;
 
 constexpr double
 usr_arccos(double theta) { // 1付近の誤差0.1程度.シミュレーションでは使うな;
@@ -105,12 +107,14 @@ inline double dist2left(double *x) {
 }
 
 bool ini_coord_twocircles(double (*x)[dim]) {
-    double rbbit = rbit_2 ,
-           bit = sqrt((lo*R * R *
+    double rbbit = rbit_2,
+           bit = sqrt((lo * R * R *
                        (M_PI - usr_arccos(rbbit) +
                         rbbit * usr_sqrt(1 - rbbit * rbbit))) *
-                      2. / Np)*0.9,
-           R2 = R - (0.5+polydispersity*0.5); // radiousを変える時はここを変える;
+                      2. / Np) *
+                 0.9,
+           R2 = R - (0.5 +
+                     polydispersity * 0.5); // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
     for (int i = 0; i < nmax; i++) {
@@ -184,9 +188,9 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
 
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
-   static constexpr double zeta = 1.0,ddt=1e-7;
-   static constexpr double fluc = usr_sqrt(8. * zeta * ddt);
-    double vi[2], ri, riw, aij, w1, w2, w6, dUr, fiw[dim];
+    static constexpr double zeta = 1.0, ddt = 1e-7;
+    static constexpr double fluc = usr_sqrt(8. * zeta * ddt);
+    double                  vi[2], ri, riw, aij, w1, w2, w6, dUr, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -241,9 +245,9 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                   double *a, int (*list)[Nn]) {
-   static constexpr double zeta = 1.0;
-   static constexpr double fluc = usr_sqrt(8. * zeta * dtlg);
-    double vi[2], ri, riw, aij, w1, w2, w6, dUr, fiw[dim];
+    static constexpr double zeta = 1.0;
+    static constexpr double fluc = usr_sqrt(8. * zeta * dtlg);
+    double                  vi[2], ri, riw, aij, w1, w2, w6, dUr, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -595,13 +599,13 @@ void calc_disp_max(double *disp_max, double (*x)[dim],
 }
 
 void auto_list_update(double *disp_max, double (*x)[dim],
-                      double (*x_update)[dim], int (*list)[Nn],double *a) {
+                      double (*x_update)[dim], int (*list)[Nn], double *a) {
     // static int count = 0;
     // count++;
     static constexpr double skin2 = skin * skin * 0.25, skinini = skin2 * 0.9;
     calc_disp_max(&(*disp_max), x, x_update);
     if (*disp_max >= skin2) {
-        cell_list(list, x,a);
+        cell_list(list, x, a);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
         *disp_max = skinini;
@@ -663,14 +667,14 @@ int main() {
 
     while (j < 1e7) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list,a);
+        auto_list_update(&disp_max, x, x_update, list, a);
         eom_abp9(v, x, f, a, list, theta, j);
     }
     j = 0;
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
-            output_ini(v, x,a);
+            output_ini(v, x, a);
             std::cout << "hazure in kasanari" << ch << endl;
             // return -1;
         }
@@ -679,13 +683,13 @@ int main() {
     int tmaxbefch = R / (dtlg * 5);
     while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list,a);
+        auto_list_update(&disp_max, x, x_update, list, a);
         eom_langevin(v, x, f, a, list);
     }
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
-            output_ini( v, x,a);
+            output_ini(v, x, a);
             std::cout << "hazure in kakimaze" << ch << endl;
             return -1;
         }
@@ -695,13 +699,13 @@ int main() {
     tmaxbefch = tmaxlg / dt;
     while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list,a);
+        auto_list_update(&disp_max, x, x_update, list, a);
         eom_abp1(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
-            output_ini( v, x,a);
+            output_ini(v, x, a);
             std::cout << "hazure in owari" << ch << endl;
             return -1;
         }
@@ -727,16 +731,16 @@ int main() {
     calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
     t[0] = 0.;
     ++kcoord;
-    output_ini( v, x,a);
-    output_iniani(v,x,a);
+    output_ini(v, x, a);
+    output_iniani(v, x, a);
     ++k;
     while (j < tanimaxch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list,a);
+        auto_list_update(&disp_max, x, x_update, list, a);
         eom_abp1(v, x, f, a, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
-            output_ani( v, x);
+            output_ani(v, x);
             kanit += tanibitch;
             /*
             if (j >= toutcoord) {
@@ -754,7 +758,7 @@ int main() {
     }
     while (j < tmaxch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list,a);
+        auto_list_update(&disp_max, x, x_update, list, a);
         eom_abp1(v, x, f, a, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
         /*
@@ -780,7 +784,7 @@ int main() {
             counthazure++;
     }
     end = std::chrono::system_clock::now(); // 計測終了時間
-    char filename[128] ;
+    char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
