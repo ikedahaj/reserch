@@ -30,7 +30,7 @@ using std::min;
 using std::ofstream;
 // #define radios 1.
 #define lo   0.7 // コンパイル時に代入する定数;
-// #define Rbit 1.4 // delta/R,Rにすると穴がなくなる;//
+#define Rbit 1.4 // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 
@@ -349,24 +349,37 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     }
 }
 inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
-double        calc_fai(double (*x)[dim], double (*v)[dim]) {
-    double sum_vt = 0., sum_v = 0.;
-    for (int i = 0; i < Np; i++) {
+void        calc_fai(double (*x)[dim], double (*v)[dim],double *para3) {//para[0]:fai para[1]:vt* para[2];om*;
+    double sum_vt = 0., sum_v = 0.,om,r,r2,sum_vrl[2]={0.,0.},sum_omrl[2]={0.,0.};
+    int count[2]={0,0};
+    for (int i = 0; i < Np; ++i) {
         if (x > 0) {
-            sum_vt += usr_abs(((x[i][0] - center_rignt) * v[i][1] -
-                               x[i][1] * v[i][0])) /
-                      sqrt((dist2right(x[i])));
+            r2=(dist2right(x[i]));
+            r=sqrt(r);
+            om=((x[i][0] - center_rignt) * v[i][1] -x[i][1] * v[i][0])/r2;
+            sum_vt += usr_abs(om) *r;
             sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
+            sum_vrl[0]+=om*r;
+            sum_omrl[0]+=om;
+            count[0]++;
         } else if (x < 0) {
-            sum_vt += usr_abs(((x[i][0] - center_left) * v[i][1] -
-                               x[i][1] * v[i][0])) /
-                      sqrt((dist2left(x[i])));
+            r2=(dist2left(x[i]));
+            r=sqrt(r);
+            om=((x[i][0] - center_left) * v[i][1] -x[i][1] * v[i][0])/r2;
+            sum_vt += usr_abs(om) *r;
             sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
+            sum_vrl[1]+=om*r;
+            sum_omrl[1]+=om;
+            count[1]++;
         } else if (x == 0) {
             sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
         }
     }
-    return (sum_vt / sum_v - M_2_PI) / (1 - M_2_PI);
+    double bunbo=1./(count[0]*count[1]);
+    para3[0]=(sum_vt / sum_v - M_2_PI) / (1 - M_2_PI);
+    para3[1]=sum_vrl[0]*sum_vrl[1]*bunbo;
+    para3[2]=sum_omrl[0]*sum_omrl[1]*bunbo;
+    
 }
 void ini_hist(double *hist, int Nhist) {
     for (int i = 0; i < Nhist; ++i) {
@@ -453,18 +466,15 @@ void output_ani(double (*v)[dim], double (*x)[dim]) {
     file.close();
     l++;
 }
-void output_fai(double fai, unsigned long long int j) {
+void output_fai(double *fai, unsigned long long int j) {
     char     filename[128];
     ofstream file;
-
     snprintf(filename, 128,
              "./%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "fai.dat",
              folder_name, R, lo, mass, tau, Rbit, v0);
     file.open(filename, std::ios::app); // append
-    for (int i = 0; i < Np; ++i) {
-        file << j * tbitani << "\t" << fai << endl;
-    }
+    file << j * tbitani << "\t" << fai[0]<<"\t"<<fai[1]<<"\t"<<fai[2] << endl;
     file.close();
 }
 bool out_setup() { // filenameが１２８文字を超えていたらfalseを返す;
@@ -756,7 +766,7 @@ int main() {
     kcoord = 0;
     int kani = 0;
     int kanit = 0;
-
+    double fai3[3];
     calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
     t[0] = 0.;
     ++kcoord;
@@ -770,7 +780,8 @@ int main() {
         // make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
             output_ani(v, x);
-            output_fai(calc_fai(x, v), j);
+            calc_fai(x, v,fai3);
+            output_fai(fai3, j);
             kanit += tanibitch;
 
             if (j >= toutcoord) {
@@ -792,7 +803,8 @@ int main() {
         // make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
             output_ani(v, x);
-            output_fai(calc_fai(x, v), j);
+            calc_fai(x,v,fai3);
+            output_fai(fai3, j);
             kanit += tanibitch;
 ///*
             if (j >= toutcoord) {
