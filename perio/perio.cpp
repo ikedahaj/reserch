@@ -11,9 +11,10 @@
 
 #define Np          10000 // 4の倍数であること;NP=4*r^2*lo
 #define Nn          100
-#define tmax        2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      2000 // 緩和時間は10たうとする;
-#define tmaxani     500  //>tmaxの時プログラムを変更すること;
+#define tmtimes     400 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      200 // 緩和時間は10たうとする;
+#define tmaxka      2000
+#define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define ratf        100.
 #define dim         2           // 変えるときはEomを変えること;
@@ -30,11 +31,11 @@ using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-#define lo   0.5 // コンパイル時に代入する定数;
+#define lo 0.5 // コンパイル時に代入する定数;
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 
-// static constexpr double tau = 40.;
+static constexpr double tau = 40.;
 static constexpr double mass = 80.;
 static constexpr double mgn = 0.;
 constexpr double        usr_sqrt(double x) {
@@ -48,11 +49,15 @@ constexpr double        usr_sqrt(double x) {
 static constexpr double cut2 = cut * cut;
 static constexpr double M_PI2 = 2. * M_PI;
 static constexpr double Mg = mgn * dt;
-static constexpr double L = usr_sqrt( Np / lo);
+static constexpr double L = usr_sqrt(Np / lo);
 static constexpr double L_inv = 1. / L;
 static constexpr double L_2 = L / 2.;
 static constexpr double Np_1 = 1. / Np;
 static constexpr double fconst = ratf * 48.;
+static constexpr int    dim2 = 2 * dim;
+static constexpr double to = (tau > 10) ? tau : 10;
+static constexpr double tmax = to * tmtimes;
+
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
                                           // 制度は10^-13程度;
     constexpr static double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
@@ -76,7 +81,7 @@ void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
     x[1] = s;
 }
 
-void ini_hex(double (*x)[dim]) {
+void ini_hex(double (*x)[dim2]) {
     int    num_x = (int) sqrt(Np) + 1;
     int    num_y = (int) sqrt(Np) + 1;
     int    i, j, k = 0;
@@ -101,18 +106,23 @@ void set_diameter(double *a) {
     for (int i = 0; i < Np; ++i)
         a[i] = 0.5;
 }
-
-void ini_array(double (*x)[dim]) {
-    for (int i = 0; i < Np; ++i)
-        for (int j = 0; j < dim; ++j)
-            x[i][j] = 0.0;
+void ini_array(double (*f)[dim]) {
+    for (int i = 0; i < Np; i++) {
+        f[i][0] = 0.;
+        f[i][1] = 0.;
+    }
+}
+void ini_hist(double *his, int koo) {
+    for (int i = 0; i < koo; i++) {
+        his[i] = 0.;
+    }
 }
 inline double perio(double x) { return L * floor(x * L_inv); }
 inline double pri_fce(double x) {
     x -= L * floor((x + L_2) * L_inv);
     return x;
 }
-void calc_force(double (*x)[dim], double (*f)[dim], double *a,
+void calc_force(double (*x)[dim2], double (*f)[dim], double *a,
                 int (*list)[Nn]) {
     double dx, dy, dr2, dUr, w2, w6, aij /*w12*/;
     ini_array(f);
@@ -135,7 +145,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
         }
 }
 
-void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
+void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
     static constexpr double zeta = 1.0, ddt = 1e-7;
     static constexpr double fluc = usr_sqrt(8. * zeta * ddt);
@@ -151,7 +161,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     }
 }
 
-void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
+void eom_langevin(double (*v)[dim], double (*x)[dim2], double (*f)[dim],
                   double *a, int (*list)[Nn], double temmp, double *theta_i) {
     double zeta = 1.0;
     double fluc = usr_sqrt(temmp * zeta * dtlg), D = usr_sqrt(2. * dtlg / tau);
@@ -169,10 +179,15 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         x[i][1] -= perio(x[i][1]);
     }
 }
-
-void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
+void ini_count(double (*x)[dim2]) {
+    for (int i = 0; i < Np; i++) {
+        x[i][2] = 0.;
+        x[i][3] = 0.;
+    }
+}
+void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    double                  sico[2];
+    double                  sico[2], ov[2];
     constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
@@ -182,19 +197,18 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv;
         v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1]) * M_inv;
         x[i][0] += v[i][0] * dt;
-        x[i][0] -= perio(x[i][0]);
         x[i][1] += v[i][1] * dt;
-        x[i][1] -= perio(x[i][1]);
+        ov[0] = -perio(x[i][0]);
+        ov[1] = -perio(x[i][1]);
+        x[i][0] += ov[0];
+        x[i][1] += ov[1];
+        x[i][2] += ov[0];
+        x[i][3] += ov[1];
     }
 }
 inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
 
-void ini_hist(double *hist, int Nhist) {
-    for (int i = 0; i < Nhist; ++i) {
-        hist[i] = 0.;
-    }
-}
-void output_ini(double (*v)[dim], double (*x)[dim], double *a) {
+void output_ini(double (*v)[dim], double (*x)[dim2], double *a) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
@@ -217,7 +231,7 @@ void output_ini(double (*v)[dim], double (*x)[dim], double *a) {
     }
     file.close();
 }
-void output(double (*v)[dim], double (*x)[dim]) {
+void output(double (*v)[dim], double (*x)[dim2]) {
     static int l = 0;
     char       filename[128];
     ofstream   file;
@@ -234,7 +248,7 @@ void output(double (*v)[dim], double (*x)[dim]) {
     file.close();
     l++;
 }
-void output_iniani(double (*v)[dim], double (*x)[dim], double *a) {
+void output_iniani(double (*v)[dim], double (*x)[dim2], double *a) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
@@ -257,7 +271,7 @@ void output_iniani(double (*v)[dim], double (*x)[dim], double *a) {
     }
     file.close();
 }
-void output_ani(double (*v)[dim], double (*x)[dim]) {
+void output_ani(double (*v)[dim], double (*x)[dim2]) {
     static int l = 1;
     char       filename[128];
     ofstream   file;
@@ -274,23 +288,12 @@ void output_ani(double (*v)[dim], double (*x)[dim]) {
     file.close();
     l++;
 }
-void output_fai(double *fai, unsigned long long int j) {
-    char     filename[128];
-    ofstream file;
-    snprintf(filename, 128,
-             "./%s_animelo%.2fMs%.3ftau%.3fv0%.1f/"
-             "fai.dat",
-             folder_name, lo, mass, tau, v0);
-    file.open(filename, std::ios::app); // append
-    file << j * tbitani << "\t" << fai[0] << "\t" << fai[1] << "\t" << fai[2]
-         << endl;
-    file.close();
-}
+
 bool out_setup() { // filenameが１２８文字を超えていたらfalseを返す;
     char     filename[128];
     ofstream file;
     int      test = snprintf(filename, 128,
-                             "./%sflo%.2fMs%.3ftau%.3fv0%.1/"
+                             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
                                   "setupofst_lo%.3f_tau%.3f_m%.3f_t%d.dat",
                              folder_name, lo, mass, tau, v0, lo, tau, mgn, tmax);
     std::cout << test << endl;
@@ -318,17 +321,18 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
         return true;
 }
 
-void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
+void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
                double (*v)[dim], double *xcor, double *vcor, int k,
                double *msd) {
-    double dr;
+    double dr, rsin[2];
     for (int i = 0; i < Np; ++i) {
-        for (int j = 0; j < dim; ++j) {
-            xcor[k] += x0[i][j] * x[i][j] * Np_1;
-            vcor[k] += v1[i][j] * v[i][j] * Np_1;
-            dr = x[i][j] - x0[i][j];
-            msd[k] += dr * dr * Np_1;
-        }
+        rsin[0] = x[i][0] - x[i][2];
+        rsin[1] = x[i][1] - x[i][3];
+        xcor[k] += (x0[i][0] * rsin[0] + x0[i][1] * rsin[1]) * Np_1;
+        vcor[k] += (v1[i][0] * v[i][0] + v1[i][1] * v[i][1]) * Np_1;
+        msd[k] += ((rsin[0] - x0[i][0]) * (rsin[0] - x0[i][0]) +
+                   (rsin[1] - x0[i][1]) * (rsin[1] - x0[i][1])) *
+                  Np_1;
     }
 }
 
@@ -338,7 +342,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     double   v_theta;
     ofstream file;
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1/"
+             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
              "xcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
@@ -347,7 +351,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     }
     file.close();
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1/"
+             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
              "vcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
@@ -356,7 +360,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     }
     file.close();
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1/"
+             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
@@ -374,7 +378,7 @@ inline int           peri_cell(int m) {
     else
         return m;
 }
-void cell_list(int (*list)[Nn], double (*x)[dim]) {
+void cell_list(int (*list)[Nn], double (*x)[dim2]) {
     int                     map_index, nx[Np][dim];
     static constexpr int    m2 = M * M;
     static constexpr double thresh2 = (cut + skin) * (cut + skin), bit = M / L;
@@ -413,13 +417,13 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
     delete[] map;
 }
 
-void update(double (*x_update)[dim], double (*x)[dim]) {
+void update(double (*x_update)[dim], double (*x)[dim2]) {
     for (int i = 0; i < Np; i++)
         for (int j = 0; j < dim; j++)
             x_update[i][j] = x[i][j];
 }
 
-void calc_disp_max(double *disp_max, double (*x)[dim],
+void calc_disp_max(double *disp_max, double (*x)[dim2],
                    double (*x_update)[dim]) {
     double dx, dy;
     double disp;
@@ -432,7 +436,7 @@ void calc_disp_max(double *disp_max, double (*x)[dim],
     }
 }
 
-void auto_list_update(double *disp_max, double (*x)[dim],
+void auto_list_update(double *disp_max, double (*x)[dim2],
                       double (*x_update)[dim], int (*list)[Nn]) {
     // static int count = 0;
     // count++;
@@ -450,7 +454,7 @@ void auto_list_update(double *disp_max, double (*x)[dim],
 int main() {
     std::chrono::system_clock::time_point start, end; // 型は auto で可
     start = std::chrono::system_clock::now();         // 計測開始時間
-    double x[Np][dim], v[Np][dim], theta[Np], a[Np], f[Np][dim], x0[Np][dim],
+    double x[Np][dim2], v[Np][dim], theta[Np], a[Np], f[Np][dim], x0[Np][dim],
         v1[Np][dim], x_update[Np][dim], disp_max = 0.;
     // int(*list)[Nn] = new int[Np][Nn];
     int                    list[Np][Nn];
@@ -463,9 +467,9 @@ int main() {
     ini_array(v);
     ini_array(x_update);
     ini_array(f);
-    ini_hist(theta, Np);
+    set_diameter(theta);
     char foldername[128];
-    snprintf(foldername, 128, "%sflo%.2fMs%.3ftau%.3fv0%.1", folder_name, lo,
+    snprintf(foldername, 128, "%sflo%.2fMs%.3ftau%.3fv0%.1f", folder_name, lo,
              mass, tau, v0);
     const char *fname = foldername;
     mkdir(fname, 0777);
@@ -520,7 +524,7 @@ int main() {
 
     std::cout << "passed kakimaze!" << endl;
     j = 0;
-    tmaxbefch = tmaxlg / dt;
+    tmaxbefch = tmaxka / dt;
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
@@ -530,7 +534,6 @@ int main() {
     int ituibi = 0, tauch = tau / dt, tanibitch = tbitani / dt;
     unsigned long long int tmaxch = tmax / dt, tanimaxch = tmaxani / dt;
     for (int xnp = 0; xnp < Np; xnp++) {
-
         for (int xdim = 0; xdim < dim; xdim++) {
             x0[xnp][xdim] = x[xnp][xdim];
             v1[xnp][xdim] = v[xnp][xdim];
@@ -543,6 +546,7 @@ int main() {
     kcoord = 0;
     int kani = 0;
     int kanit = 0;
+    ini_count(x);
     calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
     t[0] = 0.;
     ++kcoord;
@@ -599,7 +603,7 @@ int main() {
     char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1/kekkalo%.3fm%.3f.dat", folder_name,
+             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/kekkalo%.3fm%.3f.dat", folder_name,
              lo, mass, tau, v0, lo, mgn);
     file2.open(filename, std::ios::app); // append
     file2 << ave << " " << maxnum << " " << endl;
