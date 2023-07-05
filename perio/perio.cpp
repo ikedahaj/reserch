@@ -9,20 +9,20 @@
 
 #include "BM.h"
 
-#define Np          10000 // 4の倍数であること;NP=4*r^2*lo
+#define Np          40000 // 4の倍数であること;NP=4*r^2*lo
 #define Nn          100
-#define tmtimes     400 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      200 // 緩和時間は10たうとする;
-#define tmaxka      2000
-#define tmaxani     500 //>tmaxの時プログラムを変更すること;
+#define tmtimes     400  // ファイルを出す回数;
+#define tmaxlg      200  // 緩和時間は10たうとする;
+#define tmaxka      1000 // 緩和時間;
+#define tmaxani     500  //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define ratf        100.
 #define dim         2           // 変えるときはEomを変えること;
 #define cut         1.122462048 // 3.
 #define skin        1.5
 #define dtlg        1e-4
-#define dt          1e-5
-#define folder_name "peri" // 40文字程度で大きすぎ;
+#define dt          1e-2
+#define folder_name "Iaprn4e4" // 40文字程度で大きすぎ;
 #define msdbit      1.1
 #define msdini      0.01
 // #define polydispersity 0. // コードも変える;
@@ -55,7 +55,7 @@ static constexpr double L_2 = L / 2.;
 static constexpr double Np_1 = 1. / Np;
 static constexpr double fconst = ratf * 48.;
 static constexpr int    dim2 = 2 * dim;
-static constexpr double to = (tau > 10) ? tau : 10;
+static constexpr double to = 100; //(tau > 10) ? tau : 10;
 static constexpr double tmax = to * tmtimes;
 
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
@@ -162,19 +162,20 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
 }
 
 void eom_langevin(double (*v)[dim], double (*x)[dim2], double (*f)[dim],
-                  double *a, int (*list)[Nn], double temmp, double *theta_i) {
-    double zeta = 1.0;
-    double fluc = usr_sqrt(temmp * zeta * dtlg), D = usr_sqrt(2. * dtlg / tau);
+                  double *a, int (*list)[Nn], double *theta_i) {
+
+    double                  sico[2];
+    constexpr static double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
 
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        for (int j = 0; j < dim; j++) {
-            v[i][j] += -zeta * v[i][j] * dtlg + f[i][j] * dtlg +
-                       fluc * gaussian_rand();
-            x[i][j] += v[i][j] * dtlg;
-        }
+        usr_sincos(theta_i[i], sico);
+        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1]) * M_inv;
+        x[i][0]+=v[i][0]*dtlg;
+        x[i][1]+=v[i][1]*dtlg;
         x[i][0] -= perio(x[i][0]);
         x[i][1] -= perio(x[i][1]);
     }
@@ -293,7 +294,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     char     filename[128];
     ofstream file;
     int      test = snprintf(filename, 128,
-                             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
+                             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
                                   "setupofst_lo%.3f_tau%.3f_m%.3f_t%d.dat",
                              folder_name, lo, mass, tau, v0, lo, tau, mgn, tmax);
     std::cout << test << endl;
@@ -314,6 +315,9 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "自動Np" << endl;
     file << "x=0での壁を追加" << endl;
     file << "modNp" << endl;
+    file << "L=" << L << endl;
+    file << "pi? " << L * L * lo / Np << endl;
+    file << "ratio" << ratf << endl;
     file.close();
     if (test == -1)
         return false;
@@ -342,7 +346,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     double   v_theta;
     ofstream file;
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "xcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
@@ -351,7 +355,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     }
     file.close();
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "vcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
@@ -360,7 +364,7 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
     }
     file.close();
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
@@ -469,7 +473,7 @@ int main() {
     ini_array(f);
     set_diameter(theta);
     char foldername[128];
-    snprintf(foldername, 128, "%sflo%.2fMs%.3ftau%.3fv0%.1f", folder_name, lo,
+    snprintf(foldername, 128, "%slo%.2fMs%.3ftau%.3fv0%.1f", folder_name, lo,
              mass, tau, v0);
     const char *fname = foldername;
     mkdir(fname, 0777);
@@ -510,16 +514,11 @@ int main() {
     j = 0;
 
     std::cout << "passed kasanari!" << endl;
-    unsigned long long int tmaxbefch = L / (dtlg * 5);
-    while (j < tmaxbefch * 0.5) {
-        ++j;
-        auto_list_update(&disp_max, x, x_update, list);
-        eom_langevin(v, x, f, a, list, 10, theta);
-    }
+    unsigned long long int tmaxbefch = 40 / (dtlg * 5);
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_langevin(v, x, f, a, list, 1, theta);
+        eom_langevin(v, x, f, a, list, theta);
     }
 
     std::cout << "passed kakimaze!" << endl;
@@ -558,15 +557,15 @@ int main() {
         auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
-        if (j >= kanit) {
-            output_ani(v, x);
-            kanit += tanibitch;
+        // if (j >= kanit) {
+        // output_ani(v, x);
+        // kanit += tanibitch;
 
-            if (j >= toutcoord) {
-                output(v, x);
-                toutcoord += tauch;
-            }
-        } //*/
+        if (j >= toutcoord) {
+            output(v, x);
+            toutcoord += tauch;
+        }
+        // } //*/
         if (j >= tout) {
             calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
             t[kcoord] = j * dt;
@@ -603,7 +602,7 @@ int main() {
     char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
-             "./%sflo%.2fMs%.3ftau%.3fv0%.1f/kekkalo%.3fm%.3f.dat", folder_name,
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/kekkalo%.3fm%.3f.dat", folder_name,
              lo, mass, tau, v0, lo, mgn);
     file2.open(filename, std::ios::app); // append
     file2 << ave << " " << maxnum << " " << endl;
