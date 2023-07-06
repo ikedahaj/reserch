@@ -13,7 +13,7 @@
 #define Nn             50
 #define tmax           2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg         2000 // 緩和時間は10たうとする;
-#define tmaxani        500 //>tmaxの時プログラムを変更すること;
+#define tmaxani        500  //>tmaxの時プログラムを変更すること;
 #define tbitani        2
 #define dim            2           // 変えるときはEomを変えること;
 #define cut            1.122462048 // 3.
@@ -24,13 +24,14 @@
 #define msdbit         1.1
 #define msdini         0.01
 #define polydispersity 0.3 // コードも変える;
+#define para3_tbit     0.5 // double;
 using std::endl;
 using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
 #define lo   0.7 // コンパイル時に代入する定数;
-#define Rbit 1.4 // delta/R,Rにすると穴がなくなる;//
+#define Rbit 0.  // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 
@@ -38,7 +39,7 @@ static constexpr double tau = 40.;
 static constexpr double mass = 20.;
 static constexpr double mgn = 0.;
 static constexpr double R = 10.; // 固定;// ,0.1より大きいこと;
-
+////parameters
 constexpr double
 usr_arccos(double theta) { // 1付近の誤差0.1程度.シミュレーションでは使うな;
     constexpr double waru[5] = {63. / 2816, 35. / 1152, 5. / 112, 3. / 40,
@@ -61,7 +62,7 @@ constexpr double usr_sqrt(double x) {
 
 static constexpr double rbit_2 = Rbit * 0.5;
 static constexpr double Npd =
-    (lo * M_2_PI * 2. * R * R *
+    (lo * 2. * M_2_PI / (1. + polydispersity * polydispersity) * R * R *
      (M_PI - usr_arccos(rbit_2) + rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
     2.;
 static constexpr int    Np = Npd;
@@ -72,6 +73,13 @@ static constexpr double Np_1 = 1. / Npd;
 static constexpr double center_left = -Rbit * 0.5 * R;
 static constexpr double center_rignt = Rbit * 0.5 * R;
 static constexpr double x0limit = R * usr_sqrt(1 - Rbit * Rbit * 0.25);
+static constexpr int tcoorch=(tau>10)?tau/dt:10/dt;
+// χとかの出す時間について::１万アンサンブルぐらい取るようにパラメータを設定;
+static constexpr int para3_bitn = (Np > 1e4) ? 1 : (int) (1e4 / Np);
+// 出す間隔単位はt0;
+static constexpr double para3_bitt =
+    (para3_tbit / para3_bitn < dt) ? dt : para3_tbit / para3_bitn;
+// till here;
 
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
                                           // 制度は10^-13程度;
@@ -349,37 +357,40 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
     }
 }
 inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
-void        calc_fai(double (*x)[dim], double (*v)[dim],double *para3) {//para[0]:fai para[1]:vt* para[2];om*;
-    double sum_vt = 0., sum_v = 0.,om,r,r2,sum_vrl[2]={0.,0.},sum_omrl[2]={0.,0.};
-    int count[2]={0,0};
+void          calc_fai(double (*x)[dim], double (*v)[dim],
+                       double *para3) { // para[0]:fai para[1]:vt* para[2];om*;
+    double sum_vt = 0., sum_v = 0., vt, r, r2, sum_vrl[2] = {0., 0.},
+           sum_lzrl[2] = {0., 0.};
+    int                     count[2] = {0, 0};
+    static constexpr double bun = para3_bitt / para3_tbit;
+    static constexpr double bun_kai = bun / (1 - M_2_PI);
     for (int i = 0; i < Np; ++i) {
-        if (x > 0) {
-            r2=(dist2right(x[i]));
-            r=sqrt(r);
-            om=((x[i][0] - center_rignt) * v[i][1] -x[i][1] * v[i][0])/r2;
-            sum_vt += usr_abs(om) *r;
+        if (x[i][0] > 0.) {
+            r2 = (dist2right(x[i]));
+            r = sqrt(r2);
+            vt = ((x[i][0] - center_rignt) * v[i][1] - x[i][1] * v[i][0]) / r;
+            sum_vt += usr_abs(vt);
             sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
-            sum_vrl[0]+=om*r;
-            sum_omrl[0]+=om;
+            sum_vrl[0] += (vt > 0) - (vt < 0);
+            sum_lzrl[0] += vt * r;
             count[0]++;
-        } else if (x < 0) {
-            r2=(dist2left(x[i]));
-            r=sqrt(r);
-            om=((x[i][0] - center_left) * v[i][1] -x[i][1] * v[i][0])/r2;
-            sum_vt += usr_abs(om) *r;
+        } else if (x[i][0] < 0.) {
+            r2 = (dist2left(x[i]));
+            r = sqrt(r2);
+            vt = ((x[i][0] - center_left) * v[i][1] - x[i][1] * v[i][0]) / r;
+            sum_vt += usr_abs(vt);
             sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
-            sum_vrl[1]+=om*r;
-            sum_omrl[1]+=om;
+            sum_vrl[1] += (vt > 0) - (vt < 0);
+            sum_lzrl[1] += vt * r;
             count[1]++;
-        } else if (x == 0) {
+        } else if (x[i][0] == 0.) {
             sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
         }
     }
-    double bunbo=1./(count[0]*count[1]);
-    para3[0]=(sum_vt / sum_v - M_2_PI) / (1 - M_2_PI);
-    para3[1]=sum_vrl[0]*sum_vrl[1]*bunbo;
-    para3[2]=sum_omrl[0]*sum_omrl[1]*bunbo;
-    
+    double bunbo = bun / (count[0] * count[1]);
+    para3[0] += (sum_vt / sum_v - M_2_PI) * bun_kai;
+    para3[1] += sum_vrl[0] * sum_vrl[1] * bunbo;
+    para3[2] += sum_lzrl[0] * sum_lzrl[1] * bunbo;
 }
 void ini_hist(double *hist, int Nhist) {
     for (int i = 0; i < Nhist; ++i) {
@@ -470,11 +481,12 @@ void output_fai(double *fai, unsigned long long int j) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "fai.dat",
+             "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "fais.dat",
              folder_name, R, lo, mass, tau, Rbit, v0);
     file.open(filename, std::ios::app); // append
-    file << j * tbitani << "\t" << fai[0]<<"\t"<<fai[1]<<"\t"<<fai[2] << endl;
+    file << j * tbitani << "\t" << fai[0] << "\t" << fai[1] << "\t" << fai[2]
+         << endl;
     file.close();
 }
 bool out_setup() { // filenameが１２８文字を超えていたらfalseを返す;
@@ -504,25 +516,39 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "x=0での壁を追加" << endl;
     file << "modNp" << endl;
     file << "polydispersity" << polydispersity << endl;
+    file<<"χの平均を取る間隔"<<para3_bitt<<endl;
+    file<<"kaiの出す感覚"<<para3_tbit<<endl;
     file.close();
     if (test == -1)
         return false;
     else
         return true;
 }
-
-void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
-               double (*v)[dim], double *xcor, double *vcor, int k,
-               double *msd) {
-    double dr;
+void calc_corrini(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
+                  double (*v)[dim], double *xcor, double *vcor, double *msd) {
+    for (int i = 0; i < Np; i++) {
+        x0[i][0] = x[i][0];
+        x0[i][1] = x[i][1];
+        xcor[0] = x[i][0] * x[i][0] + x[i][1] * x[i][1];
+        v1[i][0] = v[i][0];
+        v1[i][1] = v[i][1];
+        vcor[0] = v[i][0] * v[i][0] + v[i][1] * v[i][1];
+    }
+}
+int calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
+              double (*v)[dim], double *xcor, double *vcor, double *msd) {
+    double     dr;
+    static int k = 1;
     for (int i = 0; i < Np; ++i) {
         for (int j = 0; j < dim; ++j) {
             xcor[k] += x0[i][j] * x[i][j] * Np_1;
             vcor[k] += v1[i][j] * v[i][j] * Np_1;
             dr = x[i][j] - x0[i][j];
-            msd[k] += dr * dr * Np_1;
+            msd[k - 1] += dr * dr * Np_1;
         }
     }
+    k++;
+    return k - 1;
 }
 
 void outputcorr(double *msd, double *vcor, double *t, int countout,
@@ -557,6 +583,11 @@ void outputcorr(double *msd, double *vcor, double *t, int countout,
         file << t[i] << "\t" << msd2[i] << endl;
     }
     file.close();
+}
+inline void ini_para3(double *p) {
+    p[0] = 0.;
+    p[1] = 0.;
+    p[2] = 0.;
 }
 inline double usr_max(double a, double b) { return (a > b) ? a : b; }
 inline double usr_min(double a, double b) { return (a > b) ? b : a; }
@@ -654,10 +685,9 @@ int main() {
         v1[Np][dim], x_update[Np][dim], disp_max = 0.;
     // int(*list)[Nn] = new int[Np][Nn];
     int                    list[Np][Nn];
-    int                    counthistv_theta = 0, countout = 0;
-    double                 tout = msdini, toutcoord = 0;
+    int                    countout = 0;
+    double                 tout = msdini;
     unsigned long long int j = 0;
-    int                    k = 0, kcoord = 0;
     set_diameter(a);
     if (!ini_coord_twocircles(x))
         return -1;
@@ -750,49 +780,48 @@ int main() {
         }
     }
     std::cout << "passed owari!" << endl;
-    int ituibi = 0, tauch = tau / dt, tanibitch = tbitani / dt;
+    int ituibi = 0,  tanibitch = tbitani / dt,
+        para3bittch = para3_bitt / dt, para3_tbitch = para3_tbit / dt;
     unsigned long long int tmaxch = tmax / dt, tanimaxch = tmaxani / dt;
-    for (int xnp = 0; xnp < Np; xnp++) {
-
-        for (int xdim = 0; xdim < dim; xdim++) {
-            x0[xnp][xdim] = x[xnp][xdim];
-            v1[xnp][xdim] = v[xnp][xdim];
-        }
-    }
     j = 0;
     tout = msdini / dt;
-    toutcoord = 0.;
-    k = 0;
-    kcoord = 0;
-    int kani = 0;
-    int kanit = 0;
-    double fai3[3];
-    calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
+    unsigned long long int toutcoord = tcoorch;
+    unsigned long long int para3_tbitco=para3_tbitch;
+    unsigned long long int para3_bittco=para3bittch;
+    long long int kanit = tanibitch;
+    double        fai3[3];
+    int k;
+    ini_para3(fai3);
+    calc_corrini(x, x0, v1, v, msd, vcor, msd2);
     t[0] = 0.;
-    ++kcoord;
     output_ini(v, x, a);
     output_iniani(v, x, a);
-    ++k;
     while (j < tanimaxch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list, a);
         eom_abp1(v, x, f, a, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
+        if(j>=para3_bittco){
+            calc_fai(x,v,fai3);
+            para3_bittco+=para3bittch;
+            if(j>=para3_tbitco){
+                output_fai(fai3,j);
+                ini_para3(fai3);
+                para3_tbitco+=para3_tbitch;
+            }
+        }
         if (j >= kanit) {
             output_ani(v, x);
-            calc_fai(x, v,fai3);
-            output_fai(fai3, j);
             kanit += tanibitch;
 
             if (j >= toutcoord) {
                 output(v, x);
-                toutcoord += tauch;
+                toutcoord += tcoorch;
             }
         } //*/
         if (j >= tout) {
-            calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
-            t[kcoord] = j * dt;
-            ++kcoord;
+            k=calc_corr(x, x0, v1, v, msd, vcor, msd2);
+            t[k] = j * dt;
             tout *= msdbit;
         }
     }
@@ -800,22 +829,22 @@ int main() {
         ++j;
         auto_list_update(&disp_max, x, x_update, list, a);
         eom_abp1(v, x, f, a, list, theta);
-        // make_v_thetahist(x, v, hist, hist2, lohist);
-        if (j >= kanit) {
-            output_ani(v, x);
-            calc_fai(x,v,fai3);
-            output_fai(fai3, j);
-            kanit += tanibitch;
-///*
+        if (j >= para3_bittco) {
+            calc_fai(x, v, fai3);
+            para3_bittco+=para3bittch;
+            if(j>=para3_tbitco){
+                output_fai(fai3, j);
+                para3_tbitco+=para3_tbitch;
+            }
+            // /*
             if (j >= toutcoord) {
                 output(v, x);
-                toutcoord += tauch;
+                toutcoord += tcoorch;
             } //*/
         }
         if (j >= tout) {
-            calc_corr(x, x0, v1, v, msd, vcor, kcoord, msd2);
-            t[kcoord] = j * dt;
-            ++kcoord;
+            k=calc_corr(x, x0, v1, v, msd, vcor, msd2);
+            t[k] = j * dt;
             tout *= msdbit;
         }
     }
@@ -835,8 +864,7 @@ int main() {
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
              folder_name, R, lo, mass, tau, Rbit, v0, lo, mgn);
     file2.open(filename, std::ios::app); // append
-    file2 << counthistv_theta << " " << counthazure << " " << ave << " "
-          << maxnum << " " << endl;
+    file2 << counthazure << " " << ave << " " << maxnum << " " << endl;
     file2 << std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
                  .count()
           << endl; // 処理に要した時間をミリ秒に変換
