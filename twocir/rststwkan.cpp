@@ -445,7 +445,7 @@ void output_iniani(double (*v)[dim], double (*x)[dim], double *a) {
              "tyokkei.dat",
              folder_name, R, lo, mass, tau, Rbit, v0);
     file.open(filename /* std::ios::app*/); // append
-    file << tbitani << endl;
+    file << tbitani  << endl;
     for (int i = 0; i < Np; i++)
         file << a[i] * 2. << endl;
     file.close();
