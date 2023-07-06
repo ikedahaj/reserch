@@ -21,10 +21,10 @@
 #define dtlg           1e-5
 #define dt             5e-6
 #define folder_name    "stwmss" // 40文字程度で大きすぎ;
-#define msdbit         1.1
+#define msdbit         1.1 
 #define msdini         0.01
 #define polydispersity 0.3 // コードも変える;
-#define para3_tbit     0.5 // double;
+#define para3_tbit     0.5 // double; 
 using std::endl;
 using std::max;
 using std::min;
