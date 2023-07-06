@@ -36,10 +36,10 @@ using std::ofstream;
 
 static constexpr double tau = 40.;
 static constexpr double mass = 80.;
-static constexpr double mgn = 0.;
+static constexpr double mgn = 0.;//有限にするときはコードを変える;
 constexpr double        usr_sqrt(double x) {
     double b = x;
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 5000; i++) {
         b = (b * b + x) / (2. * b);
     }
     return b;
@@ -104,7 +104,6 @@ double gaussian_rand(void) {
         return gset;
     }
 }
-
 void ini_hex(double (*x)[dim2]) {
     int    num_x = (int) sqrt(Np) + 1;
     int    num_y = (int) sqrt(Np) + 1;
@@ -216,7 +215,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
     constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-        theta_i[i] += D * gaussian_rand() + Mg;
+        theta_i[i] += D * gaussian_rand() ;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
         v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv;
@@ -348,7 +347,17 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     else
         return true;
 }
+void ini_corr(double (*x)[dim2],double (*x0)[dim],double (*v1)[dim],double (*v)[dim],double *xcor,double *vcor){
+    for(int i=0;i<Np;i++){
+        x0[i][0]=x[i][0];
+        x0[i][1]=x[i][1];
+        x[i][2]=0.;
+        x[i][3]=0.;
+        v1[i][0]=v[i][0];
+        v1[i][1]=v[i][1];
+    }
 
+}
 void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
                double (*v)[dim], double *xcor, double *vcor, int k,
                double *msd) {
