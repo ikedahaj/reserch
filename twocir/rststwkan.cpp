@@ -834,6 +834,7 @@ int main() {
             para3_bittco+=para3bittch;
             if(j>=para3_tbitco){
                 output_fai(fai3, j);
+                ini_para3(fai3);
                 para3_tbitco+=para3_tbitch;
             }
             // /*
