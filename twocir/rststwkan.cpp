@@ -491,7 +491,7 @@ void output_fai(double *fai, unsigned long long int j) {
 }
 bool out_setup() { // filenameが１２８文字を超えていたらfalseを返す;
     char     filename[128];
-    ofstream file;
+    ofstream file; 
     int      test =
         snprintf(filename, 128,
                  "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
