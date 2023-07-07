@@ -171,14 +171,18 @@ void calc_force(double (*x)[dim2], double (*f)[dim], double *a,
 void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
     static constexpr double zeta = 1.0, ddt = 1e-7;
-    static constexpr double fluc = usr_sqrt(8. * zeta * ddt);
+    double                  sico[2];
+    constexpr static double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-        for (int j = 0; j < dim; j++) {
-            v[i][j] +=
-                -zeta * v[i][j] * ddt + f[i][j] * ddt + fluc * gaussian_rand();
-            x[i][j] += v[i][j] * ddt;
-        }
+
+        theta_i[i] += D * gaussian_rand();
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
+        usr_sincos(theta_i[i], sico);
+        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1]) * M_inv;
+        x[i][0]+=v[i][0]*ddt;
+        x[i][1]+=v[i][1]*ddt;
         x[i][0] -= perio(x[i][0]);
         x[i][1] -= perio(x[i][1]);
     }
@@ -563,7 +567,7 @@ int main() {
         eom_abp1(v, x, f, a, list, theta);
     }
     std::cout << "passed owari!" << endl;
-    int ituibi = 0, tauch = tau / dt, tanibitch = tbitani / dt;
+    int ituibi = 0, toch = to / dt, tanibitch = tbitani / dt;
     unsigned long long int tmaxch = tmax / dt, tanimaxch = tmaxani / dt;
     for (int xnp = 0; xnp < Np; xnp++) {
         for (int xdim = 0; xdim < dim; xdim++) {
@@ -596,7 +600,7 @@ int main() {
 
         if (j >= toutcoord) {
             output(v, x);
-            toutcoord += tauch;
+            toutcoord += toch;
         }
         // } //*/
         if (j >= tout) {
@@ -614,7 +618,7 @@ int main() {
 
         if (j >= toutcoord) {
             output(v, x);
-            toutcoord += tauch;
+            toutcoord += toch;
             //*/
         }
         if (j >= tout) {
