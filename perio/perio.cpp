@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#include "BM.h"
 
 #define Np          40000 // 4の倍数であること;NP=4*r^2*lo
 #define Nn          100
@@ -37,10 +36,10 @@ using std::ofstream;
 
 static constexpr double tau = 40.;
 static constexpr double mass = 80.;
-static constexpr double mgn = 0.;
+static constexpr double mgn = 0.;//有限にするときはコードを変える;
 constexpr double        usr_sqrt(double x) {
     double b = x;
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 5000; i++) {
         b = (b * b + x) / (2. * b);
     }
     return b;
@@ -80,7 +79,31 @@ void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
     x[0] = 1.0 - c * 0.5;
     x[1] = s;
 }
+double unif_rand(double left, double right) {
+    return left + (right - left) * rand() / RAND_MAX;
+}
 
+double gaussian_rand(void) {
+    static bool   iset = true;
+    static double gset;
+    double        fac, rsq, v1, v2;
+
+    if (iset) {
+        do {
+            v1 = unif_rand(-1, 1);
+            v2 = unif_rand(-1, 1);
+            rsq = v1 * v1 + v2 * v2;
+        } while (rsq >= 1.0 || rsq == 0.0);
+        fac = sqrt(-2.0 * log(rsq) / rsq);
+
+        gset = v1 * fac;
+        iset = false;
+        return v2 * fac;
+    } else {
+        iset = true;
+        return gset;
+    }
+}
 void ini_hex(double (*x)[dim2]) {
     int    num_x = (int) sqrt(Np) + 1;
     int    num_y = (int) sqrt(Np) + 1;
@@ -148,14 +171,18 @@ void calc_force(double (*x)[dim2], double (*f)[dim], double *a,
 void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
     static constexpr double zeta = 1.0, ddt = 1e-7;
-    static constexpr double fluc = usr_sqrt(8. * zeta * ddt);
+    double                  sico[2];
+    constexpr static double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-        for (int j = 0; j < dim; j++) {
-            v[i][j] +=
-                -zeta * v[i][j] * ddt + f[i][j] * ddt + fluc * gaussian_rand();
-            x[i][j] += v[i][j] * ddt;
-        }
+
+        theta_i[i] += D * gaussian_rand();
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
+        usr_sincos(theta_i[i], sico);
+        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1]) * M_inv;
+        x[i][0]+=v[i][0]*ddt;
+        x[i][1]+=v[i][1]*ddt;
         x[i][0] -= perio(x[i][0]);
         x[i][1] -= perio(x[i][1]);
     }
@@ -192,7 +219,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
     constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-        theta_i[i] += D * gaussian_rand() + Mg;
+        theta_i[i] += D * gaussian_rand() ;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
         v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv;
@@ -324,7 +351,17 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     else
         return true;
 }
+void ini_corr(double (*x)[dim2],double (*x0)[dim],double (*v1)[dim],double (*v)[dim],double *xcor,double *vcor){
+    for(int i=0;i<Np;i++){
+        x0[i][0]=x[i][0];
+        x0[i][1]=x[i][1];
+        x[i][2]=0.;
+        x[i][3]=0.;
+        v1[i][0]=v[i][0];
+        v1[i][1]=v[i][1];
+    }
 
+}
 void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
                double (*v)[dim], double *xcor, double *vcor, int k,
                double *msd) {
@@ -530,7 +567,7 @@ int main() {
         eom_abp1(v, x, f, a, list, theta);
     }
     std::cout << "passed owari!" << endl;
-    int ituibi = 0, tauch = tau / dt, tanibitch = tbitani / dt;
+    int ituibi = 0, toch = to / dt, tanibitch = tbitani / dt;
     unsigned long long int tmaxch = tmax / dt, tanimaxch = tmaxani / dt;
     for (int xnp = 0; xnp < Np; xnp++) {
         for (int xdim = 0; xdim < dim; xdim++) {
@@ -563,7 +600,7 @@ int main() {
 
         if (j >= toutcoord) {
             output(v, x);
-            toutcoord += tauch;
+            toutcoord += toch;
         }
         // } //*/
         if (j >= tout) {
@@ -581,7 +618,7 @@ int main() {
 
         if (j >= toutcoord) {
             output(v, x);
-            toutcoord += tauch;
+            toutcoord += toch;
             //*/
         }
         if (j >= tout) {
