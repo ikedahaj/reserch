@@ -10,21 +10,21 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define Nn             50
-#define tmax           2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg         2000 // 緩和時間は10たうとする;
-#define tmaxani        500  //>tmaxの時プログラムを変更すること;
-#define tbitani        2
-#define dim            2           // 変えるときはEomを変えること;
-#define cut            1.122462048 // 3.
-#define skin           1.5
-#define dtlg           1e-5
-#define dt             5e-6
-#define folder_name    "stwmssnp" // 40文字程度で大きすぎ;
-#define msdbit         1.1
-#define msdini         0.01
+#define Nn          50
+#define tmax        2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      2000 // 緩和時間は10たうとする;
+#define tmaxani     500  //>tmaxの時プログラムを変更すること;
+#define tbitani     2
+#define dim         2           // 変えるときはEomを変えること;
+#define cut         1.122462048 // 3.
+#define skin        1.5
+#define dtlg        1e-5
+#define dt          5e-6
+#define folder_name "stwmssnp" // 40文字程度で大きすぎ;
+#define msdbit      1.1
+#define msdini      0.01
 // #define polydispersity 0.3 // コードも変える;
-#define para3_tbit     0.5 // double;
+#define para3_tbit 0.5 // double;
 using std::endl;
 using std::max;
 using std::min;
@@ -113,12 +113,12 @@ inline double dist2left(double *x) {
 }
 
 bool ini_coord_twocircles(double (*x)[dim]) {
-    double rbbit = rbit_2,
+    double rbbit = ((rbit_2>0.25)?rbit_2:0.25)-0.25,
            bit = sqrt((lo * R * R *
                        (M_PI - usr_arccos(rbbit) +
                         rbbit * usr_sqrt(1 - rbbit * rbbit))) *
                       2. / Np),
-           R2 = R - (0.5 ); // radiousを変える時はここを変える;
+           R2 = R - (0.5); // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
     for (int i = 0; i < nmax; i++) {
@@ -157,7 +157,7 @@ bool ini_coord_twocircles(double (*x)[dim]) {
 
 void set_diameter(double *a) {
     for (int i = 0; i < Np; ++i)
-        a[i] = 0.5 ;
+        a[i] = 0.5;
 }
 
 void ini_array(double (*x)[dim]) {
@@ -167,7 +167,7 @@ void ini_array(double (*x)[dim]) {
 }
 
 void calc_force(double (*x)[dim], double (*f)[dim], int (*list)[Nn]) {
-    double dx, dy, dr2, dUr, w2, w6/*,  aij /*w12*/;
+    double dx, dy, dr2, dUr, w2, w6 /*,  aij /*w12*/;
     ini_array(f);
     for (int i = 0; i < Np; ++i)
         for (int j = 1; j <= list[i][0]; ++j) {
@@ -191,7 +191,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], int (*list)[Nn]) {
 
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
-    static constexpr double ddt = 1e-7;
+    static constexpr double ddt = 1e-9;
     static constexpr double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
     double                  vi[2], ri, riw, w2, w6, dUr, fiw[dim], sico[2];
     calc_force(x, f, list);
@@ -246,7 +246,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 }
 
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
-                   int (*list)[Nn], double *theta_i) {
+                  int (*list)[Nn], double *theta_i) {
     double                  sico[2];
     static constexpr double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
     double                  vi[2], ri, riw, w2, w6, dUr, fiw[dim];
@@ -301,7 +301,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     }
 }
 
-void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], 
+void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
     double                  ri, riw, w2, w6, dUr, fiw[dim], sico[2];
     constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
@@ -485,7 +485,7 @@ void output_fai(double *fai, unsigned long long int j) {
              "fais.dat",
              folder_name, R, lo, mass, tau, Rbit, v0);
     file.open(filename, std::ios::app); // append
-    file << j * tbitani << "\t" << fai[0] << "\t" << fai[1] << "\t" << fai[2]
+    file << j * para3_tbit << "\t" << fai[0] << "\t" << fai[1] << "\t" << fai[2]
          << endl;
     file.close();
 }
@@ -505,7 +505,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "skin" << skin << endl;
     file << "Nn" << Nn << endl;
     file << "Np=" << Np << endl;
-    file<<"tamxlg="<<tmaxlg<<endl;
+    file << "tamxlg=" << tmaxlg << endl;
     file << "tmax=" << tmax << endl;
     file << "v0=" << v0 << endl;
     file << "2DkaraD" << endl;
@@ -592,7 +592,7 @@ inline double usr_max(double a, double b) { return (a > b) ? a : b; }
 inline double usr_min(double a, double b) { return (a > b) ? b : a; }
 void          cell_list(int (*list)[Nn], double (*x)[dim]) {
     int                     i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
-    static constexpr double cutmax = cut ;
+    static constexpr double cutmax = cut;
     double                  dx, dy;
     static constexpr double xlen_2 = (2. * R + Rbit * R) / 2.,
                             threash2 = (cut + skin) * (cut + skin);
@@ -712,7 +712,15 @@ int main() {
         return -1;
     }
     std::cout << foldername << endl;
-
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "fais.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0);
+    file.open(filename); 
+    file << "# t fai lzb pib" << endl;
+    file.close();
     while (tout < tmax) {
 
         tout *= msdbit;
@@ -742,11 +750,11 @@ int main() {
         }
     }
     std::cout << "passed kasanari!" << endl;
-    unsigned long long int tmaxbefch = R / (dtlg );
-    while (j < tmaxbefch ) {
+    unsigned long long int tmaxbefch = R / (dtlg);
+    while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_langevin(v, x, f,  list, theta);
+        eom_langevin(v, x, f, list, theta);
     }
 
     for (int ch = 0; ch < Np; ch++) {
@@ -763,7 +771,7 @@ int main() {
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_abp1(v, x, f,  list, theta);
+        eom_abp1(v, x, f, list, theta);
     }
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
@@ -852,7 +860,7 @@ int main() {
             counthazure++;
     }
     end = std::chrono::system_clock::now(); // 計測終了時間
-    char     filename[128];
+    // char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
