@@ -485,7 +485,7 @@ void output_fai(double *fai, unsigned long long int j) {
              "fais.dat",
              folder_name, R, lo, mass, tau, Rbit, v0);
     file.open(filename, std::ios::app); // append
-    file << j * para3_tbit << "\t" << fai[0] << "\t" << fai[1] << "\t" << fai[2]
+    file << j * dt << "\t" << fai[0] << "\t" << fai[1] << "\t" << fai[2]
          << endl;
     file.close();
 }
