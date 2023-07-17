@@ -10,17 +10,17 @@
 
 #define v0      1.0
 #define lo      0.5
-#define tau     50.
+#define tau     10.
 #define mgn     0.
 #define M_ss    80.
 #define dim     2
-#define Np      1000
-#define takebit 1 // 隣り合うファイルの間のファイル数を入力;
+#define Np      40000
+#define takebit 2 // 隣り合うファイルの間のファイル数を入力;
 #define takefst 0 // とるファイルの最初;
 #define bithist 1.
 #define moji    "tyouwaenn" // 粒子位置のファイル名;
-#define folder  "ppn4"      // 粒子位置のフォルダ名;
-#define folder2 "pe"        // ダスフォルダ名;
+#define folder  "Iaprn4e4"      // 粒子位置のフォルダ名;
+#define folder2 "Iaprn4e4"        // ダスフォルダ名;
 #define qmax    10
 #define R_max   12.
 #define R_dist  0.2
@@ -142,11 +142,11 @@ void calc_q_enn(double (*x)[2], double (*v)[2], double *sqm, int ens,
     int                 zenn = ens * Np, nal, nal2;
     int    count[qnmax + 1];
     double s2[qnmax+1],c2[qnmax+1],ompi[qnmax+1],omoi[qnmax+1], cq, sq, jx[2] = {0., 0.}, jy[2] = {0., 0.}, co = 0., si = 0., qi,
-                   jp[2] = {0., 0.}, jo[2] = {0., 0.}, 
+                   jp[2] = {0., 0.}, jo[2] = {0., 0.}, sqe[2] = {0., 0.},
                    men = 1. / zenn, en[2];
     ini_some_q(count,s2,c2,ompi,omoi,qnmax+1);
-    for (int nx = 0; nx < qnmax; nx++)
-        for (int ny = 0; ny < qnmax; ny++) {
+    for (int nx = 0; nx <= qnmax; nx++)
+        for (int ny = 0; ny <= qnmax; ny++) {
             nal2 = (nx * nx + ny * ny);
             if (nal2 < qnmax * qnmax && nal2 != 0) {
                 nal = (int) sqrt(nal2);
@@ -179,7 +179,7 @@ void calc_q_enn(double (*x)[2], double (*v)[2], double *sqm, int ens,
             // 円環平均の場合円環の幅の面積で割る;
         }
 
-    for (int i = 0; i < qnmax; i++) {
+    for (int i = 0; i <= qnmax; i++) {
         if (count[i] != 0) {
             sqm[i] += (c2[i] + s2[i]) / (count[i]);
             omp[i] += ompi[i] / count[i];
@@ -298,8 +298,8 @@ int main(int argc, char *argv[]) {
         calc_q_enn(x, v, sq, taketimes, omp, omoth);
     }
     cout << "in done" << endl;
-    calc_q_enn(x, v, sq, taketimes, omp, omoth);
-    calc_cr(x, v, cr, taketimes);
+    //calc_q_enn(x, v, sq, taketimes, omp, omoth);
+    //calc_cr(x, v, cr, taketimes);
     output(sq, omp, omoth, cr);
     end = std::chrono::system_clock::now(); // 計測終了時間
     std::cout << "succeed!"
