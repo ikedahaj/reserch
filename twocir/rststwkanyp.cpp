@@ -25,6 +25,7 @@
 #define msdini         0.01
 #define polydispersity 0.3 // コードも変える;
 #define para3_tbit     0.5 // double;
+#define ratf           1. / 24
 using std::endl;
 using std::max;
 using std::min;
@@ -74,6 +75,7 @@ static constexpr double center_left = -Rbit * 0.5 * R;
 static constexpr double center_rignt = Rbit * 0.5 * R;
 static constexpr double x0limit = R * usr_sqrt(1 - Rbit * Rbit * 0.25);
 static constexpr int    tcoorch = (tau > 10) ? tau / dt : 10 / dt;
+static constexpr double const_f=-48.*ratf;
 // χとかの出す時間について::１万アンサンブルぐらい取るようにパラメータを設定;
 static constexpr int para3_bitn = (Np > 1e4) ? 1 : (int) (1e4 / Np);
 // 出す間隔単位はt0;
@@ -182,7 +184,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], double *a,
                 w2 = aij / dr2;
                 w6 = w2 * w2 * w2;
                 // w12 = w6 * w6;
-                dUr = (-48. * w6 + 24.) * w6 / dr2 /* -12. * w12 / dr2*/;
+                dUr = const_f*( w6 - 0.5)* w6 / dr2 /* -12. * w12 / dr2*/;
                 f[i][0] -= dUr * dx;
                 f[list[i][j]][0] += dUr * dx;
                 f[i][1] -= dUr * dy;
@@ -209,7 +211,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5) * w6 / (riw * ri);
                 fiw[0] = dUr * (x[i][0] - center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
@@ -221,7 +223,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5) * w6 / (riw * ri);
                 fiw[0] = dUr * (x[i][0] - center_left);
                 fiw[1] = dUr * x[i][1];
             }
@@ -233,7 +235,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5) * w6 / (riw * ri);
                 fiw[1] = dUr * x[i][1];
             }
         }
@@ -250,7 +252,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                   double *a, int (*list)[Nn], double *theta_i) {
     constexpr static double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
-    double vi[2], ri, riw, aij, w2, w6, dUr, fiw[dim],sico[2];
+    double                  vi[2], ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -264,7 +266,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5)* w6 / (riw * ri);
                 fiw[0] = dUr * (x[i][0] - center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
@@ -276,7 +278,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5) * w6 / (riw * ri);
                 fiw[0] = dUr * (x[i][0] - center_left);
                 fiw[1] = dUr * x[i][1];
             }
@@ -288,7 +290,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5) * w6 / (riw * ri);
                 fiw[1] = dUr * x[i][1];
             }
         }
@@ -304,7 +306,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 
 void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    double                  ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
+    double                  ri, riw, aij, w2, w6, dUr, fiw[dim];
     constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
@@ -319,7 +321,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5)* w6 / (riw * ri);
                 fiw[0] = dUr * (x[i][0] - center_rignt);
                 fiw[1] = dUr * x[i][1];
             }
@@ -331,7 +333,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5) * w6 / (riw * ri);
                 fiw[0] = dUr * (x[i][0] - center_left);
                 fiw[1] = dUr * x[i][1];
             }
@@ -343,16 +345,15 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
                 w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = (-48. * w6 + 24.) * w6 / (riw * ri);
+                dUr = const_f*( w6 - 0.5) * w6 / (riw * ri);
                 fiw[1] = dUr * x[i][1];
             }
         }
         // till here*/
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        usr_sincos(theta_i[i], sico);
-        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fiw[0]) * M_inv;
-        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fiw[1]) * M_inv;
+        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + fiw[0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + fiw[1]) * M_inv;
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
