@@ -301,10 +301,12 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         }
     }
 }
-void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
-              int (*list)[Nn], double *theta_i) {
-    constexpr static double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
-    double                  vi[2], ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
+void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
+                    double *a, int (*list)[Nn]) {
+
+    double zeta = 1.0;
+    double fluc = sqrt(2. * zeta * 5. * dtlg);
+    double vi[2], ri, riw, w2, w6, dUr, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -313,9 +315,9 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
-            aij = 0.5 + a[i];
-            if (riw < cut * aij) {
-                w2 = aij * aij / (riw * riw);
+            // aij = 0.5 + a[i];
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
@@ -325,9 +327,9 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
-            aij = 0.5 + a[i];
-            if (riw < cut * aij) {
-                w2 = aij * aij / (riw * riw);
+            // aij = 0.5 + a[i];
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
@@ -337,22 +339,20 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
             riw = x0limit + 0.5 - ri;
-            aij = 0.5 + a[i];
-            if (riw < cut * aij) {
-                w2 = aij * aij / (riw * riw);
+            // aij = 0.5 + a[i];
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
                 fiw[1] = dUr * x[i][1];
             }
         }
-        theta_i[i] += D * gaussian_rand() + Mg;
-        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        usr_sincos(theta_i[i], sico);
-        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fiw[0]) * M_inv;
-        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fiw[1]) * M_inv;
-        x[i][0] += v[i][0] * dtlg;
-        x[i][1] += v[i][1] * dtlg;
+        for (int j = 0; j < dim; j++) {
+            v[i][j] +=
+                -v[i][j] * dtlg + f[i][j] * dtlg + fluc * gaussian_rand();
+            x[i][j] += v[i][j] * dtlg;
+        }
     }
 }
 
@@ -796,11 +796,6 @@ int main() {
         eom_langevin(v, x, f, a, list, theta);
     }
 
-    while (j < 1e7) {
-        ++j;
-        auto_list_update(&disp_max, x, x_update, list, a);
-        eom_abp9(v, x, f, a, list, theta);
-    }
     j = 0;
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
@@ -815,7 +810,7 @@ int main() {
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list, a);
-        eom_abp8(v, x, f, a, list, theta);
+        eom_langevin_h(v, x, f, a, list);
     }
 
     for (int ch = 0; ch < Np; ch++) {
@@ -827,6 +822,12 @@ int main() {
         }
     }
     std::cout << "passed kakimaze!" << endl;
+    j = 0;
+    while (j < 1e7) {
+        ++j;
+        auto_list_update(&disp_max, x, x_update, list, a);
+        eom_abp9(v, x, f, a, list, theta);
+    }
     j = 0;
     tmaxbefch = tmaxlg / dt;
     while (j < tmaxbefch) {

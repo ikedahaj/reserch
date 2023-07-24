@@ -301,6 +301,60 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         }
     }
 }
+void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
+                  int (*list)[Nn]) {
+
+    double zeta = 1.0;
+    double fluc = sqrt(2. * zeta * 5. * dtlg);
+    double vi[2], ri, riw, w2, w6, dUr, fiw[dim];
+    calc_force(x, f, list);
+    for (int i = 0; i < Np; i++) {
+        fiw[0] = 0.;
+        fiw[1] = 0.;
+        // /*force bitween wall;
+        if (x[i][0] > 0.) {
+            ri = sqrt(dist2right(x[i]));
+            riw = R + 0.5 - ri;
+            // aij = 0.5 + a[i];
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
+                w6 = w2 * w2 * w2;
+                // w12=w6*w6;
+                dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
+                fiw[0] = dUr * (x[i][0] - center_rignt);
+                fiw[1] = dUr * x[i][1];
+            }
+        } else if (x[i][0] < 0.) {
+            ri = sqrt(dist2left(x[i]));
+            riw = R + 0.5 - ri;
+            // aij = 0.5 + a[i];
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
+                w6 = w2 * w2 * w2;
+                // w12=w6*w6;
+                dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
+                fiw[0] = dUr * (x[i][0] - center_left);
+                fiw[1] = dUr * x[i][1];
+            }
+        } else if (x[i][0] == 0.) {
+            ri = abs(x[i][1]);
+            riw = x0limit + 0.5 - ri;
+            // aij = 0.5 + a[i];
+            if (riw < cut) {
+                w2 = 1. / (riw * riw);
+                w6 = w2 * w2 * w2;
+                // w12=w6*w6;
+                dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
+                fiw[1] = dUr * x[i][1];
+            }
+        }
+        for (int j = 0; j < dim; j++) {
+            v[i][j] +=
+                - v[i][j] * dtlg + f[i][j] * dtlg + fluc * gaussian_rand();
+            x[i][j] += v[i][j] * dtlg;
+        }
+    }
+}
 void eom_8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
            int (*list)[Nn], double *theta_i) {
     // double                  sico[2];
@@ -797,12 +851,7 @@ int main() {
         eom_langevin(v, x, f, list, theta);
     }
     j = 0;
-    while (j < 1e7) {
-        ++j;
-        auto_list_update(&disp_max, x, x_update, list);
-        eom_abp9(v, x, f, list, theta);
-    }
-j=0;
+
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] > 0 && dist2right(x[ch]) > R * R) ||
             (x[ch][0] < 0 && dist2left(x[ch]) > R * R)) {
@@ -816,7 +865,7 @@ j=0;
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
-        eom_8(v, x, f, list, theta);
+        eom_langevin_h(v, x, f, list);
     }
 
     for (int ch = 0; ch < Np; ch++) {
@@ -829,6 +878,13 @@ j=0;
     }
     std::cout << "passed kakimaze!" << endl;
     j = 0;
+    while (j<1e7)
+    {
+        ++j;
+        auto_list_update(&disp_max, x, x_update, list);
+        eom_abp9(v, x, f, list, theta);
+    }
+    
     tmaxbefch = tmaxlg / dt;
     while (j < tmaxbefch) {
         ++j;
