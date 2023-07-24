@@ -37,7 +37,7 @@ using std::ofstream;
 #define v0 1.
 
 static constexpr double tau = 40.;
-static constexpr double mass = 20.;
+static constexpr double mass = 80.;
 static constexpr double mgn = 0.;
 static constexpr double R = 10.; // 固定;// ,0.1より大きいこと;
 ////parameters
@@ -115,13 +115,13 @@ inline double dist2left(double *x) {
 }
 
 bool ini_coord_twocircles(double (*x)[dim]) {
-    double rbbit = ((rbit_2 > 0.25) ? rbit_2 : 0.25) - 0.25,
-           bit = sqrt((lo * R * R *
+    double 
+           R2 = R - (0.5 + polydispersity * 0.5),
+           rbbit = Rbit*R2*0.5,
+           bit = sqrt((lo * R2 * R2 *
                        (M_PI - usr_arccos(rbbit) +
                         rbbit * usr_sqrt(1 - rbbit * rbbit))) *
-                      2. / Np),
-           R2 = R - (0.5 +
-                     polydispersity * 0.5); // radiousを変える時はここを変える;
+                      2. / Np); // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
     for (int i = 0; i < nmax; i++) {
@@ -306,7 +306,7 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 
     double zeta = 1.0;
     double fluc = sqrt(2. * zeta * 5. * dtlg);
-    double vi[2], ri, riw, w2, w6, dUr,aij, fiw[dim];
+    double vi[2], ri, riw, w2, w6, dUr, aij, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
