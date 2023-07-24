@@ -306,7 +306,7 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 
     double zeta = 1.0;
     double fluc = sqrt(2. * zeta * 5. * dtlg);
-    double vi[2], ri, riw, w2, w6, dUr, fiw[dim];
+    double vi[2], ri, riw, w2, w6, dUr,aij, fiw[dim];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
@@ -315,9 +315,9 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
             riw = R + 0.5 - ri;
-            // aij = 0.5 + a[i];
-            if (riw < cut) {
-                w2 = 1. / (riw * riw);
+            aij = 0.5 + a[i];
+            if (riw < cut * aij) {
+                w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
@@ -327,9 +327,9 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
             riw = R + 0.5 - ri;
-            // aij = 0.5 + a[i];
-            if (riw < cut) {
-                w2 = 1. / (riw * riw);
+            aij = 0.5 + a[i];
+            if (riw < cut * aij) {
+                w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
@@ -339,9 +339,9 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
             riw = x0limit + 0.5 - ri;
-            // aij = 0.5 + a[i];
-            if (riw < cut) {
-                w2 = 1. / (riw * riw);
+            aij = 0.5 + a[i];
+            if (riw < cut * aij) {
+                w2 = aij * aij / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
