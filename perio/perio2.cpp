@@ -58,7 +58,7 @@ static constexpr double tmax = to * tmtimes;
 
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
                                           // 制度は10^-13程度;
-    constexpr static double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
+    static constexpr double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
                                        -1.0 / (3 * 4 * 5 * 6 * 7 * 8),
                                        1.0 / (3 * 4 * 5 * 6),
                                        -1.0 / (3 * 4),
@@ -175,7 +175,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     static constexpr double zeta = 1.0, ddt = 1e-7;
     double                  sico[2];
-    constexpr static double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
+    static constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
 
@@ -232,7 +232,7 @@ void ini_count(double (*x)[dim2]) {
 void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double                  ov[2];
-    constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
+    static constexpr double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         theta_i[i] += D * gaussian_rand();
@@ -381,10 +381,14 @@ void ini_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
 void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
                double (*v)[dim], double *xcor, double *vcor, int k,
                double *msd) {
-    double dr, rsin[2];
+    double  rsin[2],gc[2]={0.,0.};
     for (int i = 0; i < Np; ++i) {
-        rsin[0] = x[i][0] - x[i][2];
-        rsin[1] = x[i][1] - x[i][3];
+        gc[0]+=(x[i][0]-x[i][2])*Np_1;
+        gc[1]+=(x[i][1]-x[i][3])*Np_1;
+    }
+    for(int i=0;i<Np;i++){
+                rsin[0] = x[i][0] - x[i][2]-gc[0];
+        rsin[1] = x[i][1] - x[i][3]-gc[1];
         xcor[k] += (x0[i][0] * rsin[0] + x0[i][1] * rsin[1]) * Np_1;
         vcor[k] += (v1[i][0] * v[i][0] + v1[i][1] * v[i][1]) * Np_1;
         msd[k] += ((rsin[0] - x0[i][0]) * (rsin[0] - x0[i][0]) +
