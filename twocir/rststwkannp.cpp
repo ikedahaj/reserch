@@ -115,12 +115,13 @@ inline double dist2left(double *x) {
 }
 
 bool ini_coord_twocircles(double (*x)[dim]) {
-    double rbbit = ((rbit_2 > 0.25) ? rbit_2 : 0.25) - 0.25,
-           bit = sqrt((lo * R * R *
+    double 
+           R2 = R - (0.5 ),
+           rbbit = Rbit*R2*0.5,
+           bit = sqrt((lo * R2 * R2 *
                        (M_PI - usr_arccos(rbbit) +
                         rbbit * usr_sqrt(1 - rbbit * rbbit))) *
-                      2. / Np),
-           R2 = R - (0.5); // radiousを変える時はここを変える;
+                      2. / Np); // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
     for (int i = 0; i < nmax; i++) {
