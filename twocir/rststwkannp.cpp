@@ -118,10 +118,10 @@ bool ini_coord_twocircles(double (*x)[dim]) {
     double 
            R2 = R - (0.5 ),
            rbbit = Rbit*R2*0.5,
-           bit = sqrt((lo * R2 * R2 *
+           bit = sqrt(( R2 * R2 *
                        (M_PI - usr_arccos(rbbit) +
                         rbbit * usr_sqrt(1 - rbbit * rbbit))) *
-                      2. / Np); // radiousを変える時はここを変える;
+                      / Np); // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
     for (int i = 0; i < nmax; i++) {
