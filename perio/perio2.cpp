@@ -9,7 +9,7 @@
 
 #define Np          65536 // 累乗であること;
 #define Nn          100
-#define tmtimes     500  // ファイルを出す回数;
+#define tmtimes     400  // ファイルを出す回数;
 #define tmaxlg      200  // 緩和時間は10たうとする;
 #define tmaxka      1000 // 緩和時間;
 #define tmaxani     500  //>tmaxの時プログラムを変更すること;
@@ -19,9 +19,9 @@
 #define cut         1.122462048 // 3.
 #define skin        1.5
 #define dtlg        1e-4
-#define dt          1e-2
+#define dt          1e-3
 #define folder_name "Iapr2n2e16pir1" // 40文字程度で大きすぎ;
-#define msdbit      1.1
+#define msdbit      1.2
 #define msdini      0.01
 // #define polydispersity 0. // コードも変える;
 using std::endl;
@@ -29,11 +29,11 @@ using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-#define lo 0.6 // コンパイル時に代入する定数;
+#define lo 0.5 // コンパイル時に代入する定数;
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
-#define v0 1.
+#define v0 4.
 
-static constexpr double tau = 40.;
+static constexpr double tau = 50.;
 static constexpr double mass = 80.;
 static constexpr double mgn = 0.; // 有限にするときはコードを変える;
 constexpr double usr_sqrt(double x) {
@@ -173,7 +173,7 @@ void calc_force(double (*x)[dim2], double (*f)[dim], double *a,
 
 void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    constexpr double zeta = 1.0, ddt = 1e-7;
+    constexpr double zeta = 1.0, ddt = dtlg;
     double           sico[2];
     constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
     calc_force(x, f, a, list);
