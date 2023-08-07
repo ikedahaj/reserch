@@ -488,8 +488,8 @@ void calc_disp_max(double *disp_max, double (*x)[dim2],
     double dx, dy;
     double disp;
     for (int i = 0; i < Np; i++) {
-        dx = x[i][0] - x_update[i][0];
-        dy = x[i][1] - x_update[i][1];
+        dx = pri_fce(x[i][0] - x_update[i][0]);
+        dy = pri_fce(x[i][1] - x_update[i][1]);
         disp = dx * dx + dy * dy;
         if (disp > *disp_max)
             *disp_max = disp;
@@ -500,7 +500,7 @@ void auto_list_update(double (*x)[dim2], double (*x_update)[dim],
                       int (*list)[Nn]) {
     // static int count = 0;
     // count++;
-    static double    disp_max = 0.;
+    static double    disp_max = skin * skin;
     constexpr double skin2 = skin * skin * 0.25, skinini = skin2 * 0.9;
     calc_disp_max(&disp_max, x, x_update);
     if (disp_max >= skin2) {
