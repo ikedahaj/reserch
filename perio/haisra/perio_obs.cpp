@@ -197,7 +197,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
     constexpr double zeta = 1.0, ddt = dtlg;
     double           sico[2], fw[2];
     constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
-    calc_force(x, f, a, list);
+    calc_force(x, f, a, list) ;
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], fw);
         theta_i[i] += D * gaussian_rand();

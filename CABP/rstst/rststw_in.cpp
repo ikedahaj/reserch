@@ -16,10 +16,10 @@
 #define R           10. // 固定;// ,0.1より大きいこと;
 #define R_in        2.  // 内側の円の半径;
 #define tmax        1600 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      80// 緩和時間は10たうとする;
+#define tmaxlg      80 // 緩和時間は10たうとする;
 #define v0          1.
 #define tau         10. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
-#define mgn         0. // Omega=omega/tau,ここではomegaを入れること;
+#define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define dim         2 // 変えるときはEomを変えること;
@@ -63,18 +63,19 @@ void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
 void ini_coord_circle(double (*x)[dim]) {
     int    Np_m = lo * R * R * 16 * M_1_PI;
     double num_max = sqrt(Np_m) + 1;
-    double bitween = 2 * (R-0.5) / num_max, R2 = R - 0.5, R1 = R_in + 0.5, poj[2], r;
-    int    k = 0;
+    double bitween = 2 * (R - 0.5) / num_max, R2 = R - 0.5, R1 = R_in + 0.5,
+           poj[2], r;
+    int k = 0;
     for (int j = 0; j < num_max; ++j) {
         for (int i = 0; i < num_max; ++i) {
-            poj[0] = i * bitween + 0.5-R;
-            poj[1] = j * bitween + 0.5-R;
+            poj[0] = i * bitween + 0.5 - R;
+            poj[1] = j * bitween + 0.5 - R;
             r = poj[0] * poj[0] + poj[1] * poj[1];
             if (r <= R2 * R2 && R1 * R1 <= r) {
                 x[k][0] = i * bitween;
                 x[k][1] = j * bitween;
                 ++k;
-            }else{
+            } else {
                 continue;
             }
             if (k >= Np)
@@ -83,8 +84,10 @@ void ini_coord_circle(double (*x)[dim]) {
         if (k >= Np)
             break;
     }
-    if(k!=Np)std::cout<<k;
-    else std::cout<<k;
+    if (k != Np)
+        std::cout << k;
+    else
+        std::cout << k;
 }
 
 void set_diameter(double *a) {
@@ -370,7 +373,7 @@ void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
 
 void cell_list(int (*list)[Nn], double (*x)[dim]) {
     int              map_index, km, nx[Np][2];
-    constexpr int M=2*R/(cut+skin);
+    constexpr int    M = 2 * R / (cut + skin);
     constexpr double thresh2 = (cut + skin) * (cut + skin), bit = M / (2. * R);
     double           dx, dy;
     constexpr int    m2 = M * M;
