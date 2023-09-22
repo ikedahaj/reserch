@@ -13,31 +13,31 @@
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define lo          0.5 // コンパイル時に代入する定数;
 #define Nn          50
-#define R           10. // 固定;// ,0.1より大きいこと;
-#define R_in        2.  // 内側の円の半径;
-#define tmax        1600 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      80 // 緩和時間は10たうとする;
+#define R           20. // 固定;// ,0.1より大きいこと;
+#define R_in        5.  // 内側の円の半径;
+#define tmax        2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      200 // 緩和時間は10たうとする;
 #define v0          1.
 #define tau         10. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
-#define tbitani     1
+#define tbitani     2
 #define dim         2 // 変えるときはEomを変えること;
 #define ratf        1.
 #define cut         1.122462048 // 3.
 #define skin        1.5
 #define dtlg        0.0001
 #define dt          0.0001
-#define folder_name "stwr80"
-#define msdbit      1.1
+#define folder_name "stwr20_5"
+#define msdbit      1.2
 #define msdini      0.01
+#define wh_list     cell_list//ver_list // cell_list
 // #define polydispersity 0.2 コードも変える;
 using std::endl;
-using std::max;
-using std::min;
 using std::ofstream;
 // #define radios 1.
 
+static constexpr double Ms = 80;
 static constexpr int    Np = 4 * (R * R - R_in * R_in) * lo;
 static constexpr double cut2 = cut * cut;
 static constexpr double M_PI2 = 2. * M_PI;
@@ -60,10 +60,17 @@ void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
     x[0] = 1.0 - c * 0.5;
     x[1] = s;
 }
+constexpr double usr_sqrt(double x) {
+    double b = x;
+    for (int i = 0; i < 5000; i++) {
+        b = (b * b + x) / (2. * b);
+    }
+    return b;
+}
 void ini_coord_circle(double (*x)[dim]) {
     int    Np_m = lo * R * R * 16 * M_1_PI;
     double num_max = sqrt(Np_m) + 1;
-    double bitween = 2 * (R - 0.5) / num_max, R2 = R - 0.5, R1 = R_in + 0.5,
+    double bitween = 2 * (R ) / num_max, R2 = R - 0.3, R1 = R_in + 0.4,
            poj[2], r;
     int k = 0;
     for (int j = 0; j < num_max; ++j) {
@@ -72,8 +79,8 @@ void ini_coord_circle(double (*x)[dim]) {
             poj[1] = j * bitween + 0.5 - R;
             r = poj[0] * poj[0] + poj[1] * poj[1];
             if (r <= R2 * R2 && R1 * R1 <= r) {
-                x[k][0] = i * bitween;
-                x[k][1] = j * bitween;
+                x[k][0] = poj[0];
+                x[k][1] = poj[1];
                 ++k;
             } else {
                 continue;
@@ -84,10 +91,13 @@ void ini_coord_circle(double (*x)[dim]) {
         if (k >= Np)
             break;
     }
-    if (k != Np)
-        std::cout << k;
+    if (k != Np) {
+        std::cerr << k << " " << Np << endl;
+        exit(EXIT_FAILURE);
+    }
+
     else
-        std::cout << k;
+        std::cout << k << endl;
 }
 
 void set_diameter(double *a) {
@@ -133,7 +143,7 @@ inline void calc_force_2w(double *x, double *f) {
     }
     f[0] = dUr * x[0];
     f[1] = dUr * x[1];
-    dr = r2 - R_in - 0.5;
+    dr = r2 - R_in + 0.5;
     if (dr < cut) {
         w2 = 1. / (dr * dr);
         w6 = w2 * w2 * w2;
@@ -145,20 +155,37 @@ inline void calc_force_2w(double *x, double *f) {
 
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                   int (*list)[Nn]) {
-    double ddt = 0.0000001, fiw[dim], sinco[2], fluc = sqrt(6 * ddt);
+    double ddt = 0.0000001, fiw[dim], sinco[2], fluc = sqrt(2 * ddt);
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         calc_force_2w(x[i], fiw);
         for (int j = 0; j < dim; j++) {
-            v[i][j] += (-v[i][j] + f[i][j]) * ddt + fluc * gaussian_rand();
+            v[i][j] +=
+                (-v[i][j] + f[i][j] + fiw[j]) * ddt + fluc * gaussian_rand();
             x[i][j] += v[i][j] * ddt;
         }
     }
 }
+void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
+              int (*list)[Nn], double *theta_i) {
+    double           fiw[dim], sico[2];
+    constexpr double ddt = 1e-7, D = usr_sqrt(2. * ddt / tau);
+    calc_force(x, f, list);
+    for (int i = 0; i < Np; i++) {
+        calc_force_2w(x[i], fiw);
+        theta_i[i] += D * gaussian_rand() + Mg;
+        theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
+        usr_sincos(theta_i[i], sico);
+        v[i][0] = sico[0] + f[i][0] + fiw[0];
+        v[i][1] = sico[1] + f[i][1] + fiw[1];
+        x[i][0] += v[i][0] * dtlg;
+        x[i][1] += v[i][1] * dtlg;
+    }
+}
 void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
-    double        fiw[dim], sico[2];
-    static double D = sqrt(2. * dtlg / tau);
+    double           fiw[dim], sico[2];
+    constexpr double D = usr_sqrt(2. * dtlg / tau);
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         calc_force_2w(x[i], fiw);
@@ -221,7 +248,7 @@ void output(double (*v)[dim], double (*x)[dim]) {
             "./%s_coorlo%.2ftau%.3fm%.3fv0%.1f/"
             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
-    file.open(filename, std::ios::app); // append
+    file.open(filename); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
              << endl;
@@ -370,25 +397,27 @@ void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
     file << j * dt << "\t" << msd << endl;
     file.close();
 }
-
-void cell_list(int (*list)[Nn], double (*x)[dim]) {
+inline int usr_max(int a, int b) { return ((a > b) ? a : b); }
+inline int usr_min(int a, int b) { return ((a > b) ? b : a); }
+void       cell_list(int (*list)[Nn], double (*x)[dim]) {
     int              map_index, km, nx[Np][2];
     constexpr int    M = 2 * R / (cut + skin);
     constexpr double thresh2 = (cut + skin) * (cut + skin), bit = M / (2. * R);
     double           dx, dy;
-    constexpr int    m2 = M * M;
+    constexpr int    m2 = M * M+1;
     int(*map)[Np] = new int[m2][Np];
 
-    for (int i = 0; i < M; ++i)
-        for (int j = 0; j < M; ++j)
-            map[i + M * j][0] = 0;
+    for (int i = 0; i < m2; ++i)
+        map[i][0] = 0;
 
     for (int i = 0; i < Np; ++i) {
         nx[i][0] = (int) ((x[i][0] + R) * bit);
         nx[i][1] = (int) ((x[i][1] + R) * bit);
-        for (int m = max(nx[i][1] - 1, 0), mm = min(nx[i][1] + 1, M - 1);
+        for (int m = usr_max(nx[i][1] - 1, 0),
+                 mm = usr_min(nx[i][1] + 1, M - 1);
              m <= mm; ++m) {
-            for (int l = max(nx[i][0] - 1, 0), lm = min(nx[i][0] + 1, M - 1);
+            for (int l = usr_max(nx[i][0] - 1, 0),
+                     lm = usr_min(nx[i][0] + 1, M - 1);
                  l <= lm; ++l) {
                 map_index = l + M * m;
                 map[map_index][map[map_index][0] + 1] = i;
@@ -412,6 +441,25 @@ void cell_list(int (*list)[Nn], double (*x)[dim]) {
         }
     }
     delete[] map;
+}
+void ver_list(int (*list)[Nn], double (*x)[dim]) {
+    double           dx, dy, dr2;
+    constexpr double thresh2 = (cut + skin) * (cut + skin);
+    for (int i = 0; i < Np; i++)
+        list[i][0] = 0;
+
+    for (int i = 0; i < Np; i++)
+        for (int j = 0; j < Np; j++) {
+            if (j > i) {
+                dx = x[i][0] - x[j][0];
+                dy = x[i][1] - x[j][1];
+                dr2 = dx * dx + dy * dy;
+                if (dr2 < thresh2) {
+                    list[i][0]++;
+                    list[i][(int) list[i][0]] = j;
+                }
+            }
+        }
 }
 void update(double (*x_update)[dim], double (*x)[dim]) {
     for (int i = 0; i < Np; i++)
@@ -440,7 +488,7 @@ void auto_list_update(double (*x)[dim], double (*x_update)[dim],
     static double    disp_max = skin2 + 100;
     calc_disp_max(&(disp_max), x, x_update);
     if (disp_max > skin2) {
-        cell_list(list, x);
+        wh_list(list, x);
         update(x_update, x);
         //    std::cout<<"update"<<*disp_max<<" "<<count<<std::endl;
         disp_max = skinini;
@@ -479,14 +527,18 @@ int main() {
             tau, mgn, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
-
+    output(v,x);
+    auto_list_update(x, x_update, list);
     out_setup();
     std::cout << foldername << endl;
 
-    for (int j = 0; j < 1e9; j++) {
+    for (int j = 0; j < 1e5; j++) {
         auto_list_update(x, x_update, list);
         eom_langevin(v, x, f, list);
+        
     }
+    output(v,x);
+    return 0;
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
             output(v, x);
@@ -495,9 +547,13 @@ int main() {
         }
     }
     std::cout << "passed kasanari!" << endl;
+    for (int j = 0; j < 1e9; j++) {
+        auto_list_update(x, x_update, list);
+        eom_abp9(v, x, f, list, theta);
+    }
+
     int tmaxbefch = R / (dtlg * 5);
     for (int j = 0; j < tmaxbefch; j++) {
-        ++j;
         auto_list_update(x, x_update, list);
         eom_abp8(v, x, f, list, theta);
     }
