@@ -14,7 +14,7 @@
 #define lo          0.5 // コンパイル時に代入する定数;
 #define Nn          50
 #define R           20. // 固定;// ,0.1より大きいこと;
-#define R_in        5.  // 内側の円の半径;
+#define R_in        10.  // 内側の円の半径;
 #define tmax        2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      200 // 緩和時間は10たうとする;
 #define v0          1.
@@ -70,7 +70,7 @@ constexpr double usr_sqrt(double x) {
 void ini_coord_circle(double (*x)[dim]) {
     int    Np_m = lo * R * R * 16 * M_1_PI;
     double num_max = sqrt(Np_m) + 1;
-    double bitween = 2 * (R ) / num_max, R2 = R - 0.3, R1 = R_in + 0.4,
+    double bitween = 2 * (R ) / num_max, R2 = R - 0.3, R1 = R_in + 0.3,
            poj[2], r;
     int k = 0;
     for (int j = 0; j < num_max; ++j) {
@@ -155,13 +155,12 @@ inline void calc_force_2w(double *x, double *f) {
 
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                   int (*list)[Nn]) {
-    double ddt = 0.0000001, fiw[dim], sinco[2], fluc = sqrt(2 * ddt);
+    double ddt = 0.0000001, fiw[dim], sinco[2], fluc = sqrt(6 * ddt);
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         calc_force_2w(x[i], fiw);
         for (int j = 0; j < dim; j++) {
-            v[i][j] +=
-                (-v[i][j] + f[i][j] + fiw[j]) * ddt + fluc * gaussian_rand();
+            v[i][j] += (-v[i][j] + f[i][j]+fiw[j]) * ddt + fluc * gaussian_rand();
             x[i][j] += v[i][j] * ddt;
         }
     }
@@ -248,7 +247,7 @@ void output(double (*v)[dim], double (*x)[dim]) {
             "./%s_coorlo%.2ftau%.3fm%.3fv0%.1f/"
             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
-    file.open(filename); // append
+    file.open(filename, std::ios::app); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
              << endl;
@@ -527,18 +526,14 @@ int main() {
             tau, mgn, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
-    output(v,x);
-    auto_list_update(x, x_update, list);
+
     out_setup();
     std::cout << foldername << endl;
 
-    for (int j = 0; j < 1e5; j++) {
+    for (int j = 0; j < 1e9; j++) {
         auto_list_update(x, x_update, list);
         eom_langevin(v, x, f, list);
-        
     }
-    output(v,x);
-    return 0;
     for (int ch = 0; ch < Np; ch++) {
         if ((x[ch][0] * x[ch][0] + x[ch][1] * x[ch][1]) > (R * R)) {
             output(v, x);
