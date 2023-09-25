@@ -9,7 +9,7 @@
 
 // #define Np           65536 // 累乗であること;
 #define Nn          50
-#define tmtimes     2    // ファイルを出す回数;
+#define tmtimes     1    // ファイルを出す回数;
 #define tmaxlg      200  // 緩和時間は10たうとする;
 #define tmaxka      4000 // 緩和時間;
 #define tmaxani     2000 //>tmaxの時プログラムを変更すること;
@@ -220,7 +220,7 @@ inline void calc_force_wall(double *x, double *f) {
 }
 void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    constexpr double zeta = 1.0, ddt = dtlg;
+    constexpr double zeta = 1.0, ddt = 1e-7;
     double           sico[2], fw[2];
     constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
     calc_force(x, f, a, list);
@@ -233,8 +233,8 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
         v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fw[0]) * M_inv;
         v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fw[1]) * M_inv;
 #else
-        v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
-        v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
+        v[i][0] = (sico[0] + f[i][0] + fw[0]);
+        v[i][1] = (sico[1] + f[i][1] + fw[1]);
 #endif
         x[i][0] += v[i][0] * ddt;
         x[i][1] += v[i][1] * ddt;
@@ -354,7 +354,7 @@ void output(double (*v)[dim], double (*x)[dim2]) {
     file.close();
     l++;
 }
-void output_iniani(double (*v)[dim], double (*x)[dim2], double *a) {
+void output_iniani(double (*v)[dim], double (*x)[dim2], double *a,double *theta_i) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
@@ -372,12 +372,12 @@ void output_iniani(double (*v)[dim], double (*x)[dim2], double *a) {
              folder_name, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
-        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]<<"\t"<<theta_i[i]
              << endl;
     }
     file.close();
 }
-void output_ani(double (*v)[dim], double (*x)[dim2]) {
+void output_ani(double (*v)[dim], double (*x)[dim2],double *theta_i) {
     static int l = 1;
     char       filename[128];
     ofstream   file;
@@ -388,7 +388,7 @@ void output_ani(double (*v)[dim], double (*x)[dim2]) {
              folder_name, lo, mass, tau, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
-        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]<<"\t"<<theta_i[i]
              << endl;
     }
     file.close();
@@ -676,13 +676,13 @@ int main() {
     ini_count(x);
 
     output_ini(v, x, a);
-    output_iniani(v, x, a);
+    output_iniani(v, x, a,theta);
 
     for (unsigned long long int j = 0; j < tanimaxch; ++j) {
         auto_list_update(x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
         if (j >= kanit) {
-            output_ani(v, x);
+            output_ani(v, x,theta);
             kanit += tanibitch;
 
             if (j >= toutcoord) {
@@ -695,8 +695,8 @@ int main() {
             tout *= msdbit;
         }
     }
-    for (unsigned long long int j = 0, tmaxch2 = tmaxch - tanimaxch;
-         j < tmaxch2; ++j) {
+    double tmaxch2 = tmaxch - tanimaxch;
+    for (unsigned long long int j = 0; j < tmaxch2; ++j) {
         auto_list_update(x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
 

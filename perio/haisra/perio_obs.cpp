@@ -8,39 +8,39 @@
 #include <sys/stat.h>
 
 // #define Np           65536 // 累乗であること;
-#define Nn          100
-#define tmtimes     200  // ファイルを出す回数;
-#define tmaxlg      200  // 緩和時間は10たうとする;
-#define tmaxka      2000 // 緩和時間;
-#define tmaxani     500  //>tmaxの時プログラムを変更すること;
-#define tbitani     2
-#define ratf        1.
-#define dim         2           // 変えるときはEomを変えること;
-#define cut         1.122462048 // 3.
-#define skin        1.5
-#define dtlg        1e-3
-#define dt          1e-2
-#define folder_name "Iapr2n2e16pir1_24" // 40文字程度で大きすぎ;
-#define msdbit      1.2
-#define msdini      0.01
-
+#define Nn           50
+#define tmtimes      5   // ファイルを出す回数;
+#define tmaxlg       200 // 緩和時間は10たうとする;
+#define tmaxka       200 // 緩和時間;
+#define tmaxani      500 //>tmaxの時プログラムを変更すること;
+#define tbitani      2
+#define ratf         1.
+#define dim          2           // 変えるときはEomを変えること;
+#define cut          1.122462048 // 3.
+#define skin         1.5
+#define dtlg         1e-4
+#define dt           1e-4
+#define folder_name  "Iapr2n2e16pir1_24" // 40文字程度で大きすぎ;
+#define msdbit       1.2
+#define msdini       0.01
 #define Obstacle_2_y 0.
-#define R            40.
-#define L            100.
+#define R            2.5
+#define L            10.
 // #define polydispersity 0. // コードも変える;
 using std::endl;
 using std::ofstream;
 // #define radios 1.
-#define lo 0.7 // コンパイル時に代入する定数;
+#define lo 0.2 // コンパイル時に代入する定数;
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
-#define v0 1.
-
+#define v0        1.
+#define FLAG_MASS 1 // 1で慣性が有効,0で無効;
 static constexpr double Obstacle_1_x = L / 2;
 static constexpr double Obstacle_1_y = L / 2;
 static constexpr double Obstacle_2_x = 0;
 static constexpr double tau = 50.;
-static constexpr double mass = 80.;
+static constexpr double mass = 0.5;
 static constexpr double mgn = 0.; // 有限にするときはコードを変える;
+
 constexpr double usr_sqrt(double x) {
     double b = x;
     for (int i = 0; i < 5000; i++) {
@@ -111,10 +111,11 @@ inline double dist_2_w_1(double *x) {
     return (x[0] - Obstacle_1_x) * (x[0] - Obstacle_1_x) +
            (x[1] - Obstacle_1_y) * (x[1] - Obstacle_1_y);
 }
+
 void ini_hex(double (*x)[dim2]) {
     int NP_NO = lo * L * L * M_2_PI * 2;
-    int num_x = (int) sqrt(NP_NO)+1;
-    int num_y = (int) sqrt(NP_NO)+1;
+    int num_x = (int) sqrt(NP_NO) + 1;
+    int num_y = (int) sqrt(NP_NO) + 1;
 
     int    k = 0;
     double shift;
@@ -123,7 +124,7 @@ void ini_hex(double (*x)[dim2]) {
             shift = (double) j * 0.5 - j / 2;
             double poj[2] = {(shift + i) * L / (double) num_x,
                              j * L / (double) num_y};
-            if (dist_2_w_1(poj) >= (R + 0.5) * (R + 0.5)) {
+            if (dist_2_w_1(poj) >= (R + 0.3) * (R + 0.3)) {
                 x[k][0] = poj[0];
                 x[k][1] = poj[1];
                 k++;
@@ -135,6 +136,12 @@ void ini_hex(double (*x)[dim2]) {
         if (k == Np) {
             break;
         }
+    }
+    if (k == Np)
+        std::cout << k << endl;
+    else {
+        std::cout << k << " " << Np << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -183,28 +190,33 @@ void calc_force(double (*x)[dim2], double (*f)[dim], double *a,
 inline void calc_force_wall(double *x, double *f) {
     double dx, dy, dr, r, dUr = 0., w2, w6;
     r = sqrt(dist_2_w_1(x));
-    dr = r - R;
+    dr = r - R + 0.5;
     if (dr < cut) {
         w2 = 1. / (dr * dr);
         w6 = w2 * w2 * w2;
         dUr = fconst * (-w6 + 0.5) * w6 / (dr * r);
     }
-    f[0] = -dUr * (x[0]-Obstacle_1_x);
-    f[1] = -dUr * (x[1]-Obstacle_1_y);
+    f[0] = -dUr * (x[0] - Obstacle_1_x);
+    f[1] = -dUr * (x[1] - Obstacle_1_y);
 }
 void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     constexpr double zeta = 1.0, ddt = dtlg;
     double           sico[2], fw[2];
     constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
-    calc_force(x, f, a, list) ;
+    calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], fw);
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
+#if FLAG_MASS
         v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fw[0]) * M_inv;
         v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fw[1]) * M_inv;
+#else
+        v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
+        v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
+#endif
         x[i][0] += v[i][0] * ddt;
         x[i][1] += v[i][1] * ddt;
         x[i][0] -= perio(x[i][0]);
@@ -261,8 +273,13 @@ void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         // usr_sincos(theta_i[i], sico);
+#if FLAG_MASS
         v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + ov[0]) * M_inv;
         v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + ov[1]) * M_inv;
+#else
+        v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
+        v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
+#endif        
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
         ov[0] = -perio(x[i][0]);
@@ -432,8 +449,6 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << xcor << endl;
     file.close();
-    char     filename[128];
-    ofstream file;
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "vcor_lo%.3f_tau%.3f_m%.3f.dat",
@@ -441,8 +456,6 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << vcor << endl;
     file.close();
-    char     filename[128];
-    ofstream file;
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd_lo%.3f_tau%.3f_m%.3f.dat",
@@ -450,8 +463,6 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << msd << endl;
     file.close();
-    char     filename[128];
-    ofstream file;
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd2_lo%.3f_tau%.3f_m%.3f.dat",
@@ -475,7 +486,7 @@ void cell_list(int (*list)[Nn], double (*x)[dim2]) {
     constexpr int    m2 = M * M;
     constexpr double thresh2 = (cut + skin) * (cut + skin), bit = M / L;
     double           dx, dy;
-    int(*map)[Np] = new int[m2][Np];
+    int(*map)[Np + 1] = new int[m2][Np + 1];
     for (int i = 0; i < m2; ++i)
         map[i][0] = 0;
 
@@ -638,7 +649,7 @@ int main() {
             tout *= msdbit;
         }
     }
-    for (unsigned long long int j = 0, tmaxch2 = tmaxch - tanimaxch / dt;
+    for (unsigned long long int j = 0, tmaxch2 = tmaxch - tanimaxch;
          j < tmaxch2; ++j) {
         auto_list_update(x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
