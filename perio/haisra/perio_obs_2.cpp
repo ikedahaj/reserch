@@ -204,10 +204,10 @@ inline void calc_force_wall(double *x, double *f) {
     if (dr < cut) {
         w2 = 1. / (dr * dr);
         w6 = w2 * w2 * w2;
-        dUr = fconst * (-w6 + 0.5) * w6 / (dr * r);
+        dUr = fconst * (w6 - 0.5) * w6 / (dr * r);
     }
-    f[0] = -dUr * (x[0] - Obstacle_1_x);
-    f[1] = -dUr * (x[1] - Obstacle_1_y);
+    f[0] = dUr * (x[0] - Obstacle_1_x);
+    f[1] = dUr * (x[1] - Obstacle_1_y);
     r = sqrt(dist_2_w_2(x));
     dr = r - R;
     if (dr < cut) {
@@ -285,8 +285,8 @@ void ini_count(double (*x)[dim2]) {
 void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double           ov[2];
-    constexpr double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass,
-                     Dt = usr_sqrt(2. * dt) / mass;
+    static double D = sqrt(2. * dt / tau), M_inv = dt / mass,
+                     Dt =sqrt(2. * dt) / mass;
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], ov);
@@ -471,8 +471,6 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << xcor << endl;
     file.close();
-    char     filename[128];
-    ofstream file;
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "vcor_lo%.3f_tau%.3f_m%.3f.dat",
@@ -480,8 +478,6 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << vcor << endl;
     file.close();
-    char     filename[128];
-    ofstream file;
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd_lo%.3f_tau%.3f_m%.3f.dat",
@@ -489,8 +485,6 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << msd << endl;
     file.close();
-    char     filename[128];
-    ofstream file;
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd2_lo%.3f_tau%.3f_m%.3f.dat",
