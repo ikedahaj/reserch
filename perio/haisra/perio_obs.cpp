@@ -24,7 +24,7 @@
 #define msdbit       1.2
 #define msdini       0.01
 #define Obstacle_2_y 0.
-#define R            15.
+#define Rs           15.
 #define L            100.
 // #define polydispersity 0. // コードも変える;
 using std::endl;
@@ -44,7 +44,7 @@ using std::ofstream;
 #if !defined(TAU)
 #define TAU 1000
 #endif // TAU
-
+static constexpr double R = Rs;
 static constexpr double Obstacle_1_x = L / 2;
 static constexpr double Obstacle_1_y = L / 2;
 static constexpr double tau = TAU;
@@ -213,7 +213,8 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     constexpr double zeta = 1.0, ddt = dtlg;
     double           sico[2], fw[2];
-    constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass,Dt=usr_sqrt(20*ddt);
+    constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass,
+                     Dt = usr_sqrt(20 * ddt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], fw);
@@ -221,8 +222,10 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
 #if FLAG_MASS
-        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fw[0]) * M_inv+Dt*gaussian_rand();
-        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fw[1]) * M_inv+Dt*gaussian_rand();
+        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fw[0]) * M_inv +
+                   Dt * gaussian_rand();
+        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fw[1]) * M_inv +
+                   Dt * gaussian_rand();
 #else
         v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
         v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
@@ -275,8 +278,9 @@ void ini_count(double (*x)[dim2]) {
 }
 void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
-    double           ov[2];
-    static const double D = sqrt(2. * dt / tau), M_inv = dt / mass,Dt=sqrt(20*dt);
+    double              ov[2];
+    static const double D = sqrt(2. * dt / tau), M_inv = dt / mass,
+                        Dt = sqrt(20 * dt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], ov);
@@ -284,8 +288,10 @@ void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         // usr_sincos(theta_i[i], sico);
 #if FLAG_MASS
-        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + ov[0]) * M_inv+Dt*gaussian_rand();
-        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + ov[1]) * M_inv+Dt*gaussian_rand();
+        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + ov[0]) * M_inv +
+                   Dt * gaussian_rand();
+        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + ov[1]) * M_inv +
+                   Dt * gaussian_rand();
 #else
         v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
         v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
@@ -481,8 +487,68 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file << j * dt << "\t" << msd2 << endl;
     file.close();
 }
-void calc_t_dep(double (*x)[dim2],double (*v)[dim],long long j){
-    
+int set_x1_th1(double (*x)[dim2], double *theta_i, double(*x0),
+               double *theta_0) {
+    for (int i = 0; i < Np; i++) {
+        x0[i] = atan2(x[i][1], x[i][0]);
+        theta_0[i] = theta_i[i];
+    }
+    return 0;
+}
+inline double diff_theta(double theta_0, double theta_t) {
+    double dif = theta_t - theta_0;
+    if (dif > M_PI)
+        return dif - M_PI2;
+    else if (dif < -M_PI)
+        return dif + M_PI2;
+    else
+        return dif;
+}
+void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
+                double *theta_i) {
+    static constexpr double R_dist1 = R + cut, R_dist12 = R_dist1 * R_dist1,
+                            norm = 1. / (M_PI * (R_dist12 - R * R));
+    double        omega_t = 0., del_thetax_t = 0.,del_theta_t=0., r2;
+    static double x_theta0[Np], theta_0[Np];
+    static int    none = set_x1_th1(x, theta_i, x_theta0, theta_0);
+    int           cnt = 0;
+    for (int i = 0; i < Np; i++) {
+        r2 = dist_2_w_1(x[i]);
+        if (r2 <= R_dist12) {
+            omega_t += ((x[i][0] - Obstacle_1_x) * v[i][1] -
+                        (x[i][1] - Obstacle_1_y) * v[i][0]) /
+                       r2 * norm;
+            del_thetax_t +=diff_theta(x_theta0[i], atan2(x[i][1], x[i][0])) * norm;
+            del_theta_t+=diff_theta(theta_0[i],theta_i[i])*norm;
+            cnt++;
+        }
+    }
+    double ret_norm = 1. / (cnt * norm);
+    omega_t *= ret_norm;
+    del_theta_t *= ret_norm;
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "omegat_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << omega_t << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "thetaxt_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << del_thetax_t << endl;
+    file.close();
+        snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "thetat_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << del_theta_t << endl;
+    file.close();
 }
 static constexpr int M = L / (cut + skin);
 inline int           peri_cell(int m) {
@@ -593,7 +659,29 @@ int main() {
              lo, mass, tau, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
-
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "omegat_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << "t omega" << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "thetat_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << "t del_theta" << endl;
+    file.close();
+        snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "thetaxt_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << "t del_thetax" << endl;
+    file.close();
     if (!out_setup()) {
         std::cout << "file name is too long" << endl;
         return -1;
