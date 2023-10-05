@@ -24,21 +24,31 @@
 #define msdbit       1.2
 #define msdini       0.01
 #define Obstacle_2_y 0.
-#define R            2.5
-#define L            10.
+#define R            15.
+#define L            100.
 // #define polydispersity 0. // コードも変える;
 using std::endl;
 using std::ofstream;
 // #define radios 1.
-#define lo 0.2 // コンパイル時に代入する定数;
+#define lo 0.25 // コンパイル時に代入する定数;
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0        1.
 #define FLAG_MASS 1 // 1で慣性が有効,0で無効;
+#if !defined(MS)
+#if FLAG_MASS == 1
+#define MS 0.5
+#else
+#define MS 0.000001
+#endif
+#endif // MS
+#if !defined(TAU)
+#define TAU 1000
+#endif // TAU
+
 static constexpr double Obstacle_1_x = L / 2;
 static constexpr double Obstacle_1_y = L / 2;
-static constexpr double Obstacle_2_x = 0;
-static constexpr double tau = 50.;
-static constexpr double mass = 0.5;
+static constexpr double tau = TAU;
+static constexpr double mass = MS;
 static constexpr double mgn = 0.; // 有限にするときはコードを変える;
 
 constexpr double usr_sqrt(double x) {
@@ -203,7 +213,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     constexpr double zeta = 1.0, ddt = dtlg;
     double           sico[2], fw[2];
-    constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass;
+    constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass,Dt=usr_sqrt(20*ddt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], fw);
@@ -211,8 +221,8 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
 #if FLAG_MASS
-        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fw[0]) * M_inv;
-        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fw[1]) * M_inv;
+        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fw[0]) * M_inv+Dt*gaussian_rand();
+        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fw[1]) * M_inv+Dt*gaussian_rand();
 #else
         v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
         v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
@@ -266,7 +276,7 @@ void ini_count(double (*x)[dim2]) {
 void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double           ov[2];
-    constexpr double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
+    static const double D = sqrt(2. * dt / tau), M_inv = dt / mass,Dt=sqrt(20*dt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], ov);
@@ -274,12 +284,12 @@ void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         // usr_sincos(theta_i[i], sico);
 #if FLAG_MASS
-        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + ov[0]) * M_inv;
-        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + ov[1]) * M_inv;
+        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + ov[0]) * M_inv+Dt*gaussian_rand();
+        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + ov[1]) * M_inv+Dt*gaussian_rand();
 #else
         v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
         v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
-#endif        
+#endif
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
         ov[0] = -perio(x[i][0]);
@@ -471,7 +481,9 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     file << j * dt << "\t" << msd2 << endl;
     file.close();
 }
-
+void calc_t_dep(double (*x)[dim2],double (*v)[dim],long long j){
+    
+}
 static constexpr int M = L / (cut + skin);
 inline int           peri_cell(int m) {
     if (m < 0)
