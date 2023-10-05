@@ -8,24 +8,22 @@
 #include <sys/stat.h>
 
 // #define Np           65536 // 累乗であること;
-#define Nn           50
-#define tmtimes      5   // ファイルを出す回数;
-#define tmaxlg       200 // 緩和時間は10たうとする;
-#define tmaxka       200 // 緩和時間;
-#define tmaxani      500 //>tmaxの時プログラムを変更すること;
-#define tbitani      2
-#define ratf         1.
-#define dim          2           // 変えるときはEomを変えること;
-#define cut          1.122462048 // 3.
-#define skin         1.5
-#define dtlg         1e-4
-#define dt           1e-4
-#define folder_name  "Iapr2n2e16pir1_24" // 40文字程度で大きすぎ;
-#define msdbit       1.2
-#define msdini       0.01
-#define Obstacle_2_y 0.
-#define Rs           15.
-#define L            100.
+#define Nn          50
+#define tmtimes     5   // ファイルを出す回数;
+#define tmaxlg      200 // 緩和時間は10たうとする;
+#define tmaxka      200 // 緩和時間;
+#define tmaxani     500 //>tmaxの時プログラムを変更すること;
+#define tbitani     2
+#define ratf        1.
+#define dim         2           // 変えるときはEomを変えること;
+#define cut         1.122462048 // 3.
+#define skin        1.5
+#define dtlg        1e-4
+#define dt          1e-4
+#define folder_name "Iap_pir" // 40文字程度で大きすぎ;
+#define msdbit      1.2
+#define msdini      0.01
+#define L           100.
 // #define polydispersity 0. // コードも変える;
 using std::endl;
 using std::ofstream;
@@ -34,6 +32,7 @@ using std::ofstream;
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0        1.
 #define FLAG_MASS 1 // 1で慣性が有効,0で無効;
+
 #if !defined(MS)
 #if FLAG_MASS == 1
 #define MS 0.5
@@ -41,6 +40,9 @@ using std::ofstream;
 #define MS 0.000001
 #endif
 #endif // MS
+#if !defined(Rs)
+#define Rs 15
+#endif // Rs
 #if !defined(TAU)
 #define TAU 1000
 #endif // TAU
@@ -62,7 +64,7 @@ constexpr double usr_sqrt(double x) {
 static constexpr double cut2 = cut * cut;
 static constexpr double M_PI2 = 2. * M_PI;
 static constexpr double Mg = mgn * dt;
-static constexpr int    Np = lo * (L * L - M_PI * R * R) * 4 / M_PI;
+static constexpr int    Np = lo * (L * L) * 4 / M_PI;
 static constexpr double L_inv = 1. / L;
 static constexpr double L_2 = L / 2.;
 static constexpr double Np_1 = 1. / Np;
@@ -122,19 +124,19 @@ inline double dist_2_w_1(double *x) {
            (x[1] - Obstacle_1_y) * (x[1] - Obstacle_1_y);
 }
 
-void ini_hex(double (*x)[dim2]) {
-    int NP_NO = lo * L * L * M_2_PI * 2;
+bool ini_hex(double (*x)[dim2]) {
+    int NP_NO = lo * 4 * L * L * L * L / (L * L - M_PI * R * R) / M_PI;
     int num_x = (int) sqrt(NP_NO) + 1;
     int num_y = (int) sqrt(NP_NO) + 1;
 
     int    k = 0;
-    double shift;
+    double shift = 0;
     for (int j = 0; j < num_y; j++) {
         for (int i = 0; i < num_x; i++) {
-            shift = (double) j * 0.5 - j / 2;
+            // shift = (double) j * 0.5 - j / 2;
             double poj[2] = {(shift + i) * L / (double) num_x,
                              j * L / (double) num_y};
-            if (dist_2_w_1(poj) >= (R + 0.3) * (R + 0.3)) {
+            if (dist_2_w_1(poj) >= (R) * (R)) {
                 x[k][0] = poj[0];
                 x[k][1] = poj[1];
                 k++;
@@ -147,11 +149,12 @@ void ini_hex(double (*x)[dim2]) {
             break;
         }
     }
-    if (k == Np)
+    if (k == Np) {
         std::cout << k << endl;
-    else {
+        return true;
+    } else {
         std::cout << k << " " << Np << endl;
-        exit(EXIT_FAILURE);
+        return false;
     }
 }
 
@@ -312,18 +315,18 @@ void output_ini(double (*v)[dim], double (*x)[dim2], double *a) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%s_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyokkei.dat",
-             folder_name, lo, mass, tau, v0);
+             folder_name, R, lo, mass, tau, v0);
     file.open(filename /* std::ios::app*/); // append
     file << tbitani << endl;
     for (int i = 0; i < Np; i++)
         file << a[i] * 2. << endl;
     file.close();
     snprintf(filename, 128,
-             "./%s_coorlo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1f_coorlo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t0.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
@@ -337,9 +340,9 @@ void output(double (*v)[dim], double (*x)[dim2]) {
     ofstream   file;
 
     snprintf(filename, 128,
-             "./%s_coorlo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1f_coorlo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn, l);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
@@ -352,18 +355,18 @@ void output_iniani(double (*v)[dim], double (*x)[dim2], double *a) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%s_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyokkei.dat",
-             folder_name, lo, mass, tau, v0);
+             folder_name, R, lo, mass, tau, v0);
     file.open(filename /* std::ios::app*/); // append
     file << tbitani << endl;
     for (int i = 0; i < Np; i++)
         file << a[i] * 2. << endl;
     file.close();
     snprintf(filename, 128,
-             "./%s_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t0.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
@@ -377,9 +380,9 @@ void output_ani(double (*v)[dim], double (*x)[dim2]) {
     ofstream   file;
 
     snprintf(filename, 128,
-             "./%s_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn, l);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
@@ -393,9 +396,9 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     char     filename[128];
     ofstream file;
     int      test = snprintf(filename, 128,
-                             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+                             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
                                   "setupofst_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-                             folder_name, lo, mass, tau, v0, lo, tau, mgn, tmax);
+                             folder_name, R, lo, mass, tau, v0, lo, tau, mgn, tmax);
     std::cout << test << endl;
     file.open(filename, std::ios::app); // append
 
@@ -459,30 +462,30 @@ void calc_corr(double (*x)[dim2], double (*x0)[dim], double (*v1)[dim],
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "xcor_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << xcor << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "vcor_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << vcor << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << msd << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "msd2_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << msd2 << endl;
     file.close();
@@ -508,7 +511,7 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
                 double *theta_i) {
     static constexpr double R_dist1 = R + cut, R_dist12 = R_dist1 * R_dist1,
                             norm = 1. / (M_PI * (R_dist12 - R * R));
-    double        omega_t = 0., del_thetax_t = 0.,del_theta_t=0., r2;
+    double        omega_t = 0., del_thetax_t = 0., del_theta_t = 0., r2;
     static double x_theta0[Np], theta_0[Np];
     static int    none = set_x1_th1(x, theta_i, x_theta0, theta_0);
     int           cnt = 0;
@@ -518,8 +521,9 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
             omega_t += ((x[i][0] - Obstacle_1_x) * v[i][1] -
                         (x[i][1] - Obstacle_1_y) * v[i][0]) /
                        r2 * norm;
-            del_thetax_t +=diff_theta(x_theta0[i], atan2(x[i][1], x[i][0])) * norm;
-            del_theta_t+=diff_theta(theta_0[i],theta_i[i])*norm;
+            del_thetax_t +=
+                diff_theta(x_theta0[i], atan2(x[i][1], x[i][0])) * norm;
+            del_theta_t += diff_theta(theta_0[i], theta_i[i]) * norm;
             cnt++;
         }
     }
@@ -529,23 +533,23 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "omegat_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << omega_t << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "thetaxt_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << del_thetax_t << endl;
     file.close();
-        snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "thetat_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << del_theta_t << endl;
     file.close();
@@ -641,44 +645,45 @@ int main() {
     // int(*list)[Nn] = new int[Np][Nn];
     int list[Np][Nn];
     set_diameter(a);
-    ini_hex(x);
+    if (!ini_hex(x))
+        return -1;
     ini_array(v);
     ini_array(x_update);
     ini_array(f);
     ini_hist(theta, Np);
     char foldername[128];
-    snprintf(foldername, 128, "%slo%.2fMs%.3ftau%.3fv0%.1f", folder_name, lo,
-             mass, tau, v0);
+    snprintf(foldername, 128, "%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f", folder_name,
+             R, lo, mass, tau, v0);
     const char *fname = foldername;
     mkdir(fname, 0777);
-    snprintf(foldername, 128, "%s_coorlo%.2fMs%.3ftau%.3fv0%.1f", folder_name,
-             lo, mass, tau, v0);
+    snprintf(foldername, 128, "%sR%.1f_coorlo%.2fMs%.3ftau%.3fv0%.1f",
+             folder_name, R, lo, mass, tau, v0);
     const char *fname2 = foldername;
     mkdir(fname2, 0777);
-    snprintf(foldername, 128, "%s_animelo%.2fMs%.3ftau%.3fv0%.1f", folder_name,
-             lo, mass, tau, v0);
+    snprintf(foldername, 128, "%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f",
+             folder_name, R, lo, mass, tau, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "omegat_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << "t omega" << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "thetat_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << "t del_theta" << endl;
     file.close();
-        snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/"
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "thetaxt_lo%.3f_tau%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, v0, lo, tau, mgn);
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << "t del_thetax" << endl;
     file.close();
@@ -775,8 +780,8 @@ int main() {
     char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fv0%.1f/kekkalo%.3fm%.3f.dat", folder_name,
-             lo, mass, tau, v0, lo, mgn);
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
+             folder_name, R, lo, mass, tau, v0, lo, mgn);
     file2.open(filename, std::ios::app); // append
     file2 << ave << " " << maxnum << " " << endl;
     file2 << std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
