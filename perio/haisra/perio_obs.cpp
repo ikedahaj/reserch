@@ -11,10 +11,10 @@
 #define Nn          50
 #define tmtimes     5   // ファイルを出す回数;
 #define tmaxlg      200 // 緩和時間は10たうとする;
-#define tmaxka      200 // 緩和時間;
+#define tmaxka      2000 // 緩和時間;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     2
-#define ratf        1.
+#define ratf        0.1
 #define dim         2           // 変えるときはEomを変えること;
 #define cut         1.122462048 // 3.
 #define skin        1.5
@@ -28,14 +28,14 @@
 using std::endl;
 using std::ofstream;
 // #define radios 1.
-#define lo 0.25 // コンパイル時に代入する定数;
+
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
-#define v0        1.
+#define v0        0.5
 #define FLAG_MASS 1 // 1で慣性が有効,0で無効;
 
 #if !defined(MS)
 #if FLAG_MASS == 1
-#define MS 0.5
+#define MS 0.1
 #else
 #define MS 0.000001
 #endif
@@ -46,6 +46,9 @@ using std::ofstream;
 #if !defined(TAU)
 #define TAU 1000
 #endif // TAU
+#ifndef lo
+#define lo 0.25 // コンパイル時に代入する定数;
+#endif
 static constexpr double R = Rs;
 static constexpr double Obstacle_1_x = L / 2;
 static constexpr double Obstacle_1_y = L / 2;
@@ -208,27 +211,28 @@ inline void calc_force_wall(double *x, double *f) {
         w2 = 1. / (dr * dr);
         w6 = w2 * w2 * w2;
         dUr = fconst * (-w6 + 0.5) * w6 / (dr * r);
+        f[0] -= dUr * (x[0] - Obstacle_1_x);
+        f[1] -= dUr * (x[1] - Obstacle_1_y);
     }
-    f[0] = -dUr * (x[0] - Obstacle_1_x);
-    f[1] = -dUr * (x[1] - Obstacle_1_y);
 }
 void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     constexpr double zeta = 1.0, ddt = dtlg;
-    double           sico[2], fw[2];
+    double           sico[2];
     constexpr double D = usr_sqrt(2. * ddt / tau), M_inv = ddt / mass,
                      Dt = usr_sqrt(20 * ddt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-        calc_force_wall(x[i], fw);
+
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
+        calc_force_wall(x[i], f[i]);
 #if FLAG_MASS
-        v[i][0] += (-v[i][0] + v0 * sico[0] + f[i][0] + fw[0]) * M_inv +
-                   Dt * gaussian_rand();
-        v[i][1] += (-v[i][1] + v0 * sico[1] + f[i][1] + fw[1]) * M_inv +
-                   Dt * gaussian_rand();
+        v[i][0] +=
+            (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv + Dt * gaussian_rand();
+        v[i][1] +=
+            (-v[i][1] + v0 * sico[1] + f[i][1]) * M_inv + Dt * gaussian_rand();
 #else
         v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
         v[i][1] = (v0 * sico[1] + f[i][1] + fw[1]);
@@ -286,14 +290,15 @@ void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
                         Dt = sqrt(20 * dt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-        calc_force_wall(x[i], ov);
+
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
+        calc_force_wall(x[i], f[i]);
         // usr_sincos(theta_i[i], sico);
 #if FLAG_MASS
-        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + ov[0]) * M_inv +
+        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv +
                    Dt * gaussian_rand();
-        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + ov[1]) * M_inv +
+        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1]) * M_inv +
                    Dt * gaussian_rand();
 #else
         v[i][0] = (v0 * sico[0] + f[i][0] + fw[0]);
@@ -421,6 +426,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "pi? " << L * L * lo / Np << endl;
     file << "ratio" << ratf << endl;
     file << "to" << to << endl;
+    file << "Np合わせた;" << endl;
     file.close();
     if (test == -1)
         return false;
@@ -514,6 +520,7 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
     double        omega_t = 0., del_thetax_t = 0., del_theta_t = 0., r2;
     static double x_theta0[Np], theta_0[Np];
     static int    none = set_x1_th1(x, theta_i, x_theta0, theta_0);
+    static bool   exist_sou[Np];
     int           cnt = 0;
     for (int i = 0; i < Np; i++) {
         r2 = dist_2_w_1(x[i]);
@@ -521,10 +528,18 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
             omega_t += ((x[i][0] - Obstacle_1_x) * v[i][1] -
                         (x[i][1] - Obstacle_1_y) * v[i][0]) /
                        r2 * norm;
-            del_thetax_t +=
-                diff_theta(x_theta0[i], atan2(x[i][1], x[i][0])) * norm;
-            del_theta_t += diff_theta(theta_0[i], theta_i[i]) * norm;
+            if (exist_sou[i]) {
+                del_thetax_t +=
+                    diff_theta(x_theta0[i], atan2(x[i][1], x[i][0])) * norm;
+            } else {
+                exist_sou[i] = true;
+                x_theta0[i] = atan2(x[i][1], x[i][0]);
+            }
+            del_theta_t += theta_i[i] * norm;
             cnt++;
+        } else {
+            if (exist_sou[i])
+                exist_sou[i] = false;
         }
     }
     double ret_norm = 1. / (cnt * norm);
@@ -670,21 +685,21 @@ int main() {
              "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "omegat_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
-    file.open(filename, std::ios::app); // append
+    file.open(filename); // append
     file << "t omega" << endl;
     file.close();
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "thetat_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
-    file.open(filename, std::ios::app); // append
+    file.open(filename); // append
     file << "t del_theta" << endl;
     file.close();
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "thetaxt_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
-    file.open(filename, std::ios::app); // append
+    file.open(filename); // append
     file << "t del_thetax" << endl;
     file.close();
     if (!out_setup()) {
@@ -720,7 +735,8 @@ int main() {
     std::cout << "passed owari!" << endl;
     int ituibi = 0, toch = to / dt, tanibitch = tbitani / dt;
     constexpr unsigned long long int tmaxch = tmax / dt,
-                                     tanimaxch = tmaxani / dt;
+                                     tanimaxch = tmaxani / dt,
+                                     tout_tdepch = 1. / dt;
     for (int xnp = 0; xnp < Np; xnp++) {
         for (int xdim = 0; xdim < dim; xdim++) {
             x0[xnp][xdim] = x[xnp][xdim];
@@ -730,8 +746,8 @@ int main() {
 
     double tout = msdini / dt;
     double toutcoord = 0.;
-
-    int kanit = 0;
+    double tout_tdeps = 0.;
+    double kanit = 0;
     ini_count(x);
 
     output_ini(v, x, a);
@@ -740,29 +756,36 @@ int main() {
     for (unsigned long long int j = 0; j < tanimaxch; ++j) {
         auto_list_update(x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
-        if (j >= kanit) {
-            output_ani(v, x);
-            kanit += tanibitch;
+        if (j >= tout_tdeps) {
+            tout_tdeps += tout_tdepch;
+            calc_t_dep(x, v, j, theta);
+            if (j >= kanit) {
+                output_ani(v, x);
+                kanit += tanibitch;
 
-            if (j >= toutcoord) {
-                output(v, x);
-                toutcoord += toch;
-            }
-        } //*/
+                if (j >= toutcoord) {
+                    output(v, x);
+                    toutcoord += toch;
+                }
+            } //*/
+        }
         if (j >= tout) {
             calc_corr(x, x0, v1, v, j);
             tout *= msdbit;
         }
     }
-    for (unsigned long long int j = 0, tmaxch2 = tmaxch - tanimaxch;
-         j < tmaxch2; ++j) {
+    double tmaxch2 = tmaxch - tanimaxch;
+    for (unsigned long long int j = 0; j < tmaxch2; ++j) {
         auto_list_update(x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
-
-        if (j >= toutcoord) {
-            output(v, x);
-            toutcoord += toch;
-            //*/
+        if (j >= tout_tdeps) {
+            tout_tdeps += tout_tdepch;
+            calc_t_dep(x, v, j, theta);
+            if (j >= toutcoord) {
+                output(v, x);
+                toutcoord += toch;
+                //*/
+            }
         }
         if (j >= tout) {
             calc_corr(x, x0, v1, v, j + tmaxch);
@@ -777,7 +800,6 @@ int main() {
             maxnum = list[i][0];
     }
     end = std::chrono::system_clock::now(); // 計測終了時間
-    char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
