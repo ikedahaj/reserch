@@ -211,10 +211,10 @@ inline void calc_force_wall(double *x, double *f) {
         w2 = 1. / (dr * dr);
         w6 = w2 * w2 * w2;
         dUr = fconst * (-w6 + 0.5) * w6 / (dr * r);
-        f[0] -= dUr * (x[0] - Obstacle_1_x);
+f[0] -= dUr * (x[0] - Obstacle_1_x);
         f[1] -= dUr * (x[1] - Obstacle_1_y);
     }
-}
+    }
 void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     constexpr double zeta = 1.0, ddt = dtlg;
@@ -223,11 +223,11 @@ void eom_abp9(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
                      Dt = usr_sqrt(20 * ddt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-
+        
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         usr_sincos(theta_i[i], sico);
-        calc_force_wall(x[i], f[i]);
+calc_force_wall(x[i], f[i]);
 #if FLAG_MASS
         v[i][0] +=
             (-v[i][0] + v0 * sico[0] + f[i][0]) * M_inv + Dt * gaussian_rand();
@@ -248,7 +248,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim2], double (*f)[dim],
                   double *a, int (*list)[Nn], double *theta_i) {
 
     constexpr double zeta = 1.0, ddt = 1e-9;
-    constexpr double fluc = usr_sqrt(4. * zeta * ddt);
+    constexpr double fluc = usr_sqrt( zeta * ddt);
     double           fw[2];
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
@@ -290,10 +290,10 @@ void eom_abp1(double (*v)[dim], double (*x)[dim2], double (*f)[dim], double *a,
                         Dt = sqrt(20 * dt);
     calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
-
+        
         theta_i[i] += D * gaussian_rand();
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        calc_force_wall(x[i], f[i]);
+calc_force_wall(x[i], f[i]);
         // usr_sincos(theta_i[i], sico);
 #if FLAG_MASS
         v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv +
@@ -320,7 +320,7 @@ void output_ini(double (*v)[dim], double (*x)[dim2], double *a) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%s_animeR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyokkei.dat",
              folder_name, R, lo, mass, tau, v0);
     file.open(filename /* std::ios::app*/); // append
@@ -329,7 +329,7 @@ void output_ini(double (*v)[dim], double (*x)[dim2], double *a) {
         file << a[i] * 2. << endl;
     file.close();
     snprintf(filename, 128,
-             "./%sR%.1f_coorlo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%s_coorR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t0.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
@@ -345,7 +345,7 @@ void output(double (*v)[dim], double (*x)[dim2]) {
     ofstream   file;
 
     snprintf(filename, 128,
-             "./%sR%.1f_coorlo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%s_coorR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
@@ -360,7 +360,7 @@ void output_iniani(double (*v)[dim], double (*x)[dim2], double *a) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%s_animeR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyokkei.dat",
              folder_name, R, lo, mass, tau, v0);
     file.open(filename /* std::ios::app*/); // append
@@ -369,7 +369,7 @@ void output_iniani(double (*v)[dim], double (*x)[dim2], double *a) {
         file << a[i] * 2. << endl;
     file.close();
     snprintf(filename, 128,
-             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%s_animeR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t0.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename /* std::ios::app*/); // append
@@ -385,7 +385,7 @@ void output_ani(double (*v)[dim], double (*x)[dim2]) {
     ofstream   file;
 
     snprintf(filename, 128,
-             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f/"
+             "./%s_animeR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
@@ -520,7 +520,7 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
     double        omega_t = 0., del_thetax_t = 0., del_theta_t = 0., r2;
     static double x_theta0[Np], theta_0[Np];
     static int    none = set_x1_th1(x, theta_i, x_theta0, theta_0);
-    static bool   exist_sou[Np];
+static bool   exist_sou[Np];
     int           cnt = 0;
     for (int i = 0; i < Np; i++) {
         r2 = dist_2_w_1(x[i]);
@@ -528,16 +528,16 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
             omega_t += ((x[i][0] - Obstacle_1_x) * v[i][1] -
                         (x[i][1] - Obstacle_1_y) * v[i][0]) /
                        r2 * norm;
-            if (exist_sou[i]) {
-                del_thetax_t +=
-                    diff_theta(x_theta0[i], atan2(x[i][1], x[i][0])) * norm;
+if (exist_sou[i]) {
+            del_thetax_t +=
+                diff_theta(x_theta0[i], atan2(x[i][1], x[i][0])) * norm;
             } else {
                 exist_sou[i] = true;
                 x_theta0[i] = atan2(x[i][1], x[i][0]);
             }
             del_theta_t += theta_i[i] * norm;
             cnt++;
-        } else {
+} else {
             if (exist_sou[i])
                 exist_sou[i] = false;
         }
@@ -671,11 +671,11 @@ int main() {
              R, lo, mass, tau, v0);
     const char *fname = foldername;
     mkdir(fname, 0777);
-    snprintf(foldername, 128, "%sR%.1f_coorlo%.2fMs%.3ftau%.3fv0%.1f",
+    snprintf(foldername, 128, "%s_coorR%.1flo%.2fMs%.3ftau%.3fv0%.1f",
              folder_name, R, lo, mass, tau, v0);
     const char *fname2 = foldername;
     mkdir(fname2, 0777);
-    snprintf(foldername, 128, "%sR%.1f_animelo%.2fMs%.3ftau%.3fv0%.1f",
+    snprintf(foldername, 128, "%s_animeR%.1flo%.2fMs%.3ftau%.3fv0%.1f",
              folder_name, R, lo, mass, tau, v0);
     const char *fname3 = foldername;
     mkdir(fname3, 0777);
