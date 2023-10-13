@@ -28,9 +28,9 @@
 #define msdini      0.01
 #define ratf        1.0
 #define ratf_w      1.
-#define w_list      ver_list
+#define w_list      cell_list // ver_list or cell_list
 // #define polydispersity 0.3 // コードも変える;
-#define para3_tbit 0.5 // double;
+#define para3_tbit 1. // double;
 using std::endl;
 using std::max;
 using std::min;
@@ -41,15 +41,18 @@ using std::ofstream;
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 #ifndef TAU
-#define TAU 1000
+#define TAU 50
 #endif
 #ifndef MS
 #define MS 80
 #endif
+#ifndef Rs
+#define Rs 10
+#endif
 static constexpr double tau = TAU;
 static constexpr double mass = MS;
 static constexpr double mgn = 0.;
-static constexpr double R = 10; // 13.07252733;  // 固定;// ,0.1より大きいこと;
+static constexpr double R = Rs; // 13.07252733;  // 固定;// ,0.1より大きいこと;
 ////parameters
 constexpr double usr_arccos(double theta) {
     // 1付近の誤差0.1程度.シミュレーションでは使うな;
@@ -93,10 +96,10 @@ static constexpr double const_f = -48. * ratf;
 static constexpr double const_f_w = -48. * ratf_w;
 static constexpr double msdbit = msdBit / dt;
 // χとかの出す時間について::１万アンサンブルぐらい取るようにパラメータを設定;
-// 理想の出す数;
+// 理想の出す数;１で固定するようにした;
 static constexpr int para3_bitn = 1;
 // 実際の出す間隔 intで;
-static constexpr int para3_bitlonch =
+static constexpr double para3_bitlonch =
     (para3_tbit / para3_bitn < dt) ? 1 : (int) (para3_tbit / para3_bitn / dt);
 // till here;
 
@@ -476,25 +479,63 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     }
 }
 inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
-void          calc_fai(double (*x)[dim], double (*v)[dim],
-                       double *para3) { // para[0]:fai para[1]:vt* para[2];om*;
+double        ret_0(bool *k) {
+    for (int i = 0; i < Np; i++) {
+        k[i] = false;
+    }
+    return 0;
+}
+
+void calc_fai(double (*x)[dim], double (*v)[dim],
+              long long int j) { // para[0]:fai para[1]:vt* para[2];om*;
     double sum_vt = 0., sum_v = 0., vt, r, r2, sum_vrl[2] = {0., 0.},
-           sum_lzrl[2] = {0., 0.};
+           sum_lzrl[2] = {0., 0.}, para3[3] = {0, 0, 0}, del_theta_td = 0.;
+    int           cnt = 0;
+    static double theta_past[Np];
+    static double delta_theta = 0.;
     // int                     count[2] = {0, 0};
-    constexpr double bun = 1 / (para3_tbit / para3_bitlonch / dt);
-    constexpr double bun_kai = bun / (1 - M_2_PI);
+    // constexpr double bun = 1 / (para3_tbit / para3_bitlonch / dt);
+    constexpr double bun_kai = 1 / (1 - M_2_PI), R_1cor2 = (R - 1) * (R - 1),
+                     R_2cor2 = (R - 2) * (R - 2);
     for (int i = 0; i < Np; ++i) {
         r2 = x[i][0] * x[i][0] + x[i][1] * x[i][1];
-        r = sqrt(r2);
-        vt = ((x[i][0]) * v[i][1] - x[i][1] * v[i][0]) / r;
+        vt = ((x[i][0]) * v[i][1] - x[i][1] * v[i][0]) / r2;
         sum_vt += usr_abs(vt);
         sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
         sum_vrl[0] += ((vt > 0) - (vt < 0)) * Np_1;
         sum_lzrl[0] += vt * Np_1;
+
+        if (r2 > R_1cor2) {
+            cnt++;
+            double atan_i = atan2(x[i][1], x[i][0]);
+            del_theta_td += M_PI2 * (int) ((atan_i - theta_past[i]) * M_1_PI);
+            theta_past[i] = atan_i;
+        } else if (r2 > R_2cor2) {
+            theta_past[i] = atan2(x[i][1], x[i][0]);
+        }
     }
     para3[0] += (sum_vt / sum_v - M_2_PI) * bun_kai;
-    para3[1] += sum_vrl[0] * bun;
-    para3[2] += sum_lzrl[0] * bun;
+    para3[1] += sum_vrl[0];
+    para3[2] += sum_lzrl[0];
+    del_theta_td /= cnt;
+    delta_theta += del_theta_td;
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "fais_R%.3f.dat",
+             folder_name, lo, mass, tau, Rbit, v0, R);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << para3[0] << "\t" << para3[1] << "\t" << para3[2]
+         << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "del_theta_R%.3f.dat",
+             folder_name, lo, mass, tau, Rbit, v0, R);
+    file.open(filename);
+    file << j * dt << "\t" << delta_theta << endl;
+    file.close();
 }
 void ini_hist(double *hist, int Nhist) {
     for (int i = 0; i < Nhist; ++i) {
@@ -559,18 +600,6 @@ void output_ani(double (*v)[dim], double (*x)[dim], double *theta_i) {
     l++;
 }
 
-void output_fai(double *fai, unsigned long long int j) {
-    char     filename[128];
-    ofstream file;
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "fais_R%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename, std::ios::app); // append
-    file << j * dt << "\t" << fai[0] << "\t" << fai[1] << "\t" << fai[2]
-         << endl;
-    file.close();
-}
 bool out_setup() { // filenameが１２８文字を超えていたらfalseを返す;
     char     filename[128];
     ofstream file;
@@ -702,7 +731,8 @@ void          cell_list(int (*list)[Nn], double (*x)[dim]) {
     for (int i = 0; i < Np; ++i) {
         nx[i][0] = (int) ((x[i][0] + xlen_2) * bitx);
         nx[i][1] = (int) ((x[i][1] + R) * bity);
-        for (int m = usr_max(nx[i][1] - 1, 0), mm = usr_min(nx[i][1] + 1, My - 1);
+        for (int m = usr_max(nx[i][1] - 1, 0),
+                 mm = usr_min(nx[i][1] + 1, My - 1);
              m <= mm; ++m) {
             for (int l = usr_max(nx[i][0] - 1, 0),
                      lm = usr_min(nx[i][0] + 1, Mx - 1);
@@ -823,6 +853,13 @@ int main() {
     file.open(filename);
     file << "# t fai lzb pib" << endl;
     file.close();
+    snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "del_theta_R%.3f.dat",
+             folder_name, lo, mass, tau, Rbit, v0, R);
+    file.open(filename);
+    file << "#t del_theta" << endl;
+    file.close();
 
     for (int j = 0; j < 1e7; ++j) {
         auto_list_update(x, x_update, list);
@@ -890,10 +927,9 @@ int main() {
         // make_v_thetahist(x, v, hist, hist2, lohist);
         // eom_langevin_h(v, x, f, list);
         if (j >= para3_bitlonco) {
-            calc_fai(x, v, fai3);
+            calc_fai(x, v, j);
             para3_bitlonco += para3_bitlonch;
             if (j >= para3_tbitco) {
-                output_fai(fai3, j);
                 if (fai3[0] > faimax)
                     faimax = fai3[0];
                 if (fai3[0] > 0.3)
@@ -930,10 +966,9 @@ int main() {
         eom_abp1(v, x, f, list, theta);
         // eom_langevin_h(v, x, f, list);
         if (j >= para3_bitlonco) {
-            calc_fai(x, v, fai3);
+            calc_fai(x, v, j);
             para3_bitlonco += para3_bitlonch;
             if (j >= para3_tbitco) {
-                output_fai(fai3, j);
                 if (fai3[0] > faimax)
                     faimax = fai3[0];
                 if (fai3[0] > 0.3)
