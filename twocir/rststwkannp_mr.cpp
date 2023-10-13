@@ -7,12 +7,14 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#include "BM.h"
+#include <deque>
+#include <vector>
 
+#include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define Nn          50
-#define tmax        4000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmax        8000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      4000 // 緩和時間は10たうとする;
 #define tmaxani     500  //>tmaxの時プログラムを変更すること;
 #define tbitani     2
@@ -21,7 +23,7 @@
 #define skin        1.5
 #define dtlg        1e-5
 #define dt          1e-5
-#define folder_name "stwmssnp3" // 40文字程度で大きすぎ;
+#define folder_name "stwmssnp2" // 40文字程度で大きすぎ;
 #define msdBit      2
 #define msdini      0.01
 #define ratf        1.0
@@ -34,21 +36,20 @@ using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-#define lo   0.5 // コンパイル時に代入する定数;
+#define lo   0.7 // コンパイル時に代入する定数;
 #define Rbit 0.  // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 #ifndef TAU
-#define TAU 50
+#define TAU 1000
 #endif
-#if !defined(MS)
+#ifndef MS
 #define MS 80
-#endif // MS   
-
+#endif
 static constexpr double tau = TAU;
 static constexpr double mass = MS;
 static constexpr double mgn = 0.;
-static constexpr double R = 2.2; // 13.07252733;  // 固定;// ,0.1より大きいこと;
+static constexpr double R = 10; // 13.07252733;  // 固定;// ,0.1より大きいこと;
 ////parameters
 constexpr double usr_arccos(double theta) {
     // 1付近の誤差0.1程度.シミュレーションでは使うな;
@@ -75,16 +76,15 @@ static constexpr double Npd =
     (lo * 2. * M_2_PI * R * R *
      (M_PI - usr_arccos(rbit_2) + rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
     2.;
-static constexpr int    Np = Npd;
-static constexpr double Rs = usr_sqrt(
-    Np /
-    ((lo * 2. * M_2_PI *
-      (M_PI - usr_arccos(rbit_2) + rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
-     2.));
+static constexpr int Np = Npd;
+// static constexpr double R=usr_sqrt(Np/((lo * 2. * M_2_PI  *
+//					(M_PI - usr_arccos(rbit_2) + rbit_2 *
+////usr_sqrt(1 - rbit_2 * rbit_2))) *
+//					2.));
 static constexpr double cut2 = cut * cut;
 static constexpr double M_PI2 = 2. * M_PI;
 static constexpr double Mg = mgn * dt;
-static constexpr double Np_1 = 1. / Npd;
+static constexpr double Np_1 = 1. / Np;
 static constexpr double center_left = -Rbit * 0.5 * R;
 static constexpr double center_rignt = Rbit * 0.5 * R;
 static constexpr double x0limit = R * usr_sqrt(1 - Rbit * Rbit * 0.25);
@@ -265,7 +265,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                   int (*list)[Nn], double *theta_i) {
 
-    double zeta = 1.0, ddt = 1e-9, const_f_wst = -4800.;
+    double zeta = 1.0, ddt = 1e-9, const_fst = -4800.;
     double fluc = sqrt(2. * zeta * 5. * ddt);
     double ri, riw, w2, w6, dUr;
     calc_force(x, f, list);
@@ -280,7 +280,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = const_f_wst * (w6 - 0.5) * w6 / (riw * ri);
+                dUr = const_fst * (w6 - 0.5) * w6 / (riw * ri);
                 f[i][0] += dUr * (x[i][0] - center_rignt);
                 f[i][1] += dUr * x[i][1];
             }
@@ -292,7 +292,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = const_f_wst * (w6 - 0.5) * w6 / (riw * ri);
+                dUr = const_fst * (w6 - 0.5) * w6 / (riw * ri);
                 f[i][0] += dUr * (x[i][0] - center_left);
                 f[i][1] += dUr * x[i][1];
             }
@@ -304,7 +304,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = const_f_wst * (w6 - 0.5) * w6 / (riw * ri);
+                dUr = const_fst * (w6 - 0.5) * w6 / (riw * ri);
                 f[i][1] += dUr * x[i][1];
             }
         }
@@ -605,7 +605,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
                    (M_PI - usr_arccos(rbit_2) +
                     rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
                   2.);
-    file << "zeta=0.1,t=0.01" << endl;
+    file << "eta=0.1,t=0.01" << endl;
     file.close();
     if (test == -1)
         return false;
@@ -629,14 +629,14 @@ void calc_corrini(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
              "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "xcor_R%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename, std::ios::app); // append
+    file.open(filename); // append
     file << 0 << "\t" << xcor << endl;
     file.close();
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "vcor_R%.3f_m%.3f.dat",
              folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename, std::ios::app); // append
+    file.open(filename); // append
     file << 0 << "\t" << vcor << endl;
     file.close();
 }
@@ -682,58 +682,53 @@ inline void ini_para3(double *p) {
     p[1] = 0.;
     p[2] = 0.;
 }
+
 inline double usr_max(double a, double b) { return (a > b) ? a : b; }
 inline double usr_min(double a, double b) { return (a > b) ? b : a; }
 void          cell_list(int (*list)[Nn], double (*x)[dim]) {
-    int                     i, j, k, l, m, lm, mm, map_index, km, nx[Np][2];
-    static constexpr double cutmax = cut;
-    double                  dx, dy;
+    int                     map_index, nx[Np][dim];
     static constexpr double xlen_2 = (2. * R + Rbit * R) / 2.,
                             threash2 = (cut + skin) * (cut + skin);
-    static constexpr int Mx = (int) (xlen_2 * 2. / (cutmax + skin));
+    static constexpr int Mx = (int) (xlen_2 * 2. / (cut + skin));
     static constexpr int My =
-        (int) (2. * R / (cutmax + skin)); // M<=2R/(cutmax+skin)
+        (int) (2. * R / (cut + skin)); // M<=2R/(cutmax+skin)
     static constexpr int    m2 = Mx * My;
     static constexpr double R2 = 2. * R, bitx = Mx / (xlen_2 * 2.),
                             bity = My / (R2); // ひとつのせるの幅の逆数;
-    int(*map)[Np] = new int[m2][Np];
+    double dx, dy;
+    // int(*map)[Np + 1] = new int[m2][Np + 1];
+    std::vector<std::deque<int>> map(m2);
 
-    for (i = 0; i < m2; ++i)
-        map[i][0] = 0;
-
-    for (i = 0; i < Np; ++i) {
+    for (int i = 0; i < Np; ++i) {
         nx[i][0] = (int) ((x[i][0] + xlen_2) * bitx);
         nx[i][1] = (int) ((x[i][1] + R) * bity);
-        for (m = usr_max(nx[i][1] - 1, 0), mm = usr_min(nx[i][1] + 1, My - 1);
+        for (int m = usr_max(nx[i][1] - 1, 0), mm = usr_min(nx[i][1] + 1, My - 1);
              m <= mm; ++m) {
-            for (l = usr_max(nx[i][0] - 1, 0),
-                lm = usr_min(nx[i][0] + 1, Mx - 1);
+            for (int l = usr_max(nx[i][0] - 1, 0),
+                     lm = usr_min(nx[i][0] + 1, Mx - 1);
                  l <= lm; ++l) {
                 map_index = l + Mx * m;
-                map[map_index][0]++;
-                map[map_index][map[map_index][0]] = i;
+                map[map_index].emplace_front(i);
             }
         }
     }
-    double aij;
-    for (i = 0; i < Np; ++i) {
+    // int km, j;
+    for (int i = 0; i < Np; ++i) {
         list[i][0] = 0;
         map_index = nx[i][0] + Mx * nx[i][1];
-        for (k = 1, km = (map[map_index][0]); k <= km; ++k) {
-            j = map[map_index][k];
-            if (j > i) {
-                dx = x[i][0] - x[j][0];
-                dy = x[i][1] - x[j][1];
-                // dx-=L*floor((dx+0.5*L)/L);
-                // dy-=L*floor((dy+0.5*L)/L);
+        for (auto &itr : map[map_index]) {
+            // j = map[map_index][k];
+            if (itr > i) {
+                dx = (x[i][0] - x[itr][0]);
+                dy = (x[i][1] - x[itr][1]);
                 if ((dx * dx + dy * dy) < threash2) {
                     list[i][0]++;
-                    list[i][list[i][0]] = j;
+                    list[i][list[i][0]] = itr;
                 }
             }
         }
     }
-    delete[] map;
+    // delete[] map;
 }
 void ver_list(int (*list)[Nn], double (*x)[dim]) {
     double           dx, dy, dr2;
@@ -843,7 +838,7 @@ int main() {
     }
     std::cout << "passed kasanari!" << endl;
     output_ini(v, x);
-    unsigned long long int tmaxbefch = 2*R / (dtlg);
+    unsigned long long int tmaxbefch = 2 * R / (dtlg);
     for (int j = 0; j < tmaxbefch; j++) {
         auto_list_update(x, x_update, list);
         eom_langevin_h(v, x, f, list);
