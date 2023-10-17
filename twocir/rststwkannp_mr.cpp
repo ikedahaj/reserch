@@ -23,7 +23,7 @@
 #define skin        1.5
 #define dtlg        1e-5
 #define dt          1e-5
-#define folder_name "stwmssnp2" // 40文字程度で大きすぎ;
+#define folder_name "stwmssnp4" // 40文字程度で大きすぎ;
 #define msdBit      2
 #define msdini      0.01
 #define ratf        1.0
@@ -31,6 +31,7 @@
 #define w_list      cell_list // ver_list or cell_list
 // #define polydispersity 0.3 // コードも変える;
 #define para3_tbit 1. // double;
+#define FLAG_MASS  0  // 1なら慣性あり0なら慣性なし;
 using std::endl;
 using std::max;
 using std::min;
@@ -44,7 +45,11 @@ using std::ofstream;
 #define TAU 50
 #endif
 #ifndef MS
-#define MS 80
+#if FLAG_MASS == 1
+#define MS 50
+#else
+#define MS 0.0000001
+#endif
 #endif
 #ifndef Rs
 #define Rs 10
@@ -257,9 +262,14 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         }
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        // usr_sincos(theta_i[i], sico);
+// usr_sincos(theta_i[i], sico);
+#if FLAG_MASS == 1
         v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv;
         v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1]) * M_inv;
+#else
+        v[i][0] = (v0 * cos(theta_i[i]) + f[i][0]);
+        v[i][1] = (v0 * sin(theta_i[i]) + f[i][1]);
+#endif
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
@@ -418,9 +428,14 @@ void eom_8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         }
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        // usr_sincos(theta_i[i], sico);
+// usr_sincos(theta_i[i], sico);
+#if FLAG_MASS == 1
         v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv;
         v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1]) * M_inv;
+#else
+        v[i][0] = (v0 * cos(theta_i[i]) + f[i][0]);
+        v[i][1] = (v0 * sin(theta_i[i]) + f[i][1]);
+#endif
         x[i][0] += v[i][0] * dtlg;
         x[i][1] += v[i][1] * dtlg;
     }
@@ -471,23 +486,21 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
         // till here*/
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
-        // usr_sincos(theta_i[i], sico);
+// usr_sincos(theta_i[i], sico);
+#if FLAG_MASS == 1
         v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv;
         v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1]) * M_inv;
+#else
+        v[i][0] = (v0 * cos(theta_i[i]) + f[i][0]) ;
+        v[i][1] = (v0 * sin(theta_i[i]) + f[i][1]) ;
+#endif
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
 }
 inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
-double        ret_0(bool *k) {
-    for (int i = 0; i < Np; i++) {
-        k[i] = false;
-    }
-    return 0;
-}
-
-void calc_fai(double (*x)[dim], double (*v)[dim],
-              long long int j) { // para[0]:fai para[1]:vt* para[2];om*;
+void          calc_fai(double (*x)[dim], double (*v)[dim],
+                       long long j) { // para[0]:fai para[1]:vt* para[2];om*;
     double sum_vt = 0., sum_v = 0., vt, r, r2, sum_vrl[2] = {0., 0.},
            sum_lzrl[2] = {0., 0.}, para3[3] = {0, 0, 0}, del_theta_td = 0.;
     int           cnt = 0;
@@ -499,7 +512,8 @@ void calc_fai(double (*x)[dim], double (*v)[dim],
                      R_2cor2 = (R - 2) * (R - 2);
     for (int i = 0; i < Np; ++i) {
         r2 = x[i][0] * x[i][0] + x[i][1] * x[i][1];
-        vt = ((x[i][0]) * v[i][1] - x[i][1] * v[i][0]) / r2;
+        r = sqrt(r2);
+        vt = ((x[i][0]) * v[i][1] - x[i][1] * v[i][0]) / r;
         sum_vt += usr_abs(vt);
         sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
         sum_vrl[0] += ((vt > 0) - (vt < 0)) * Np_1;
@@ -522,17 +536,17 @@ void calc_fai(double (*x)[dim], double (*v)[dim],
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "fais_R%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R);
+                      "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+                               "fais_R%.3f.dat",
+                      folder_name, lo, mass, tau, Rbit, v0, R);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << para3[0] << "\t" << para3[1] << "\t" << para3[2]
          << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "del_theta_R%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R);
+                      "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+                               "del_theta_R%.3f.dat",
+                      folder_name, lo, mass, tau, Rbit, v0, R);
     file.open(filename);
     file << j * dt << "\t" << delta_theta << endl;
     file.close();
@@ -647,10 +661,10 @@ void calc_corrini(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
     for (int i = 0; i < Np; i++) {
         x0[i][0] = x[i][0];
         x0[i][1] = x[i][1];
-        xcor = x[i][0] * x[i][0] + x[i][1] * x[i][1];
+        xcor += (x[i][0] * x[i][0] + x[i][1] * x[i][1])*Np_1;
         v1[i][0] = v[i][0];
         v1[i][1] = v[i][1];
-        vcor = v[i][0] * v[i][0] + v[i][1] * v[i][1];
+        vcor += (v[i][0] * v[i][0] + v[i][1] * v[i][1])*Np_1;
     }
     char     filename[128];
     ofstream file;
@@ -667,6 +681,13 @@ void calc_corrini(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
              folder_name, lo, mass, tau, Rbit, v0, R, mgn);
     file.open(filename); // append
     file << 0 << "\t" << vcor << endl;
+    file.close();
+        snprintf(filename, 128,
+             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "msd_R%.3f_m%.3f.dat",
+             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
+    file.open(filename); // append
+    file << "#t msd" << endl;
     file.close();
 }
 void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
