@@ -27,7 +27,7 @@
 #define folder_name "Iap_pir2" // 40文字程度で大きすぎ;
 #define msdbit      1.2
 #define msdini      0.01
-#define L           120.
+#define L           130.
 // #define polydispersity 0. // コードも変える;
 using std::endl;
 using std::ofstream;
@@ -535,44 +535,52 @@ inline double diff_theta(double theta_0, double theta_t) {
 void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
                 double *theta_i) {
     static constexpr double R_dist1 = R + cut, R_dist12 = R_dist1 * R_dist1,
-                            R_dist22 = (R + 2 ) * (R + 2 ),
+                            R_dist22 = (R + 2) * (R + 2),
                             norm = 1. / (M_PI * (R_dist12 - R * R));
-    double        omega_t = 0., del_thetax_t = 0., del_vs = 0., r2, atan_i;
-    static double x_theta0[Np], x_past[Np][dim], stack_theta = 0.;
-    static bool   exist_sou[Np];
-    int           cnt = 0;
+    double omega_t = 0., del_thetax_t = 0., del_theta_t = 0., del_vs = 0., r2,
+           atan_i;
+    static double x_theta0[Np], theta0[Np], x_past[Np][dim], stack_theta = 0.,
+                                                             stack_theta0 = 0.;
+    static bool exist_sou[Np];
+    int         cnt = 0;
     for (int i = 0; i < Np; i++) {
         r2 = dist_2_w_1(x[i]);
-        if (r2 <= R_dist12) {
-            omega_t += ((x[i][0] - Obstacle_1_x) * v[i][1] -
-                        (x[i][1] - Obstacle_1_y) * v[i][0]) /
-                       r2 * norm;
-            if (exist_sou[i]) {
-                atan_i = atan2(x[i][1], x[i][0]);
-                del_thetax_t += diff_theta(x_theta0[i], atan_i) * norm;
-                x_theta0[i] = atan_i;
-
+        if (r2 <= R_dist22) {
+            if (r2 <= R_dist12) {
+                omega_t += ((x[i][0] - Obstacle_1_x) * v[i][1] -
+                            (x[i][1] - Obstacle_1_y) * v[i][0]) /
+                           r2 * norm;
+                if (exist_sou[i]) {
+                    atan_i = atan2(x[i][1], x[i][0]);
+                    del_thetax_t += diff_theta(x_theta0[i], atan_i) * norm;
+                    x_theta0[i] = atan_i;
+                    del_theta_t += diff_theta(theta0[i], theta_i[i]) * norm;
+                    theta0[i] = theta_i[i];
+                } else {
+                    exist_sou[i] = true;
+                    x_theta0[i] = atan2(x[i][1], x[i][0]);
+                    theta0[i] = theta_i[i];
+                }
+                del_vs += cos(theta_i[i] - atan2(x[i][1] - x_past[i][1],
+                                                 x[i][0] - x_past[i][0])) *
+                          norm;
+                cnt++;
             } else {
-                exist_sou[i] = true;
-                x_theta0[i] = atan2(x[i][1], x[i][0]);
+                if (exist_sou[i])
+                    exist_sou[i] = false;
             }
-            del_vs += cos(theta_i[i] - atan2(x[i][1] - x_past[i][1],
-                                             x[i][0] - x_past[i][0]));
-            cnt++;
-        } else {
-            if (exist_sou[i])
-                exist_sou[i] = false;
-        }
-        if(r2<=R_dist22){
-            x_past[i][0]=x[i][0];
-            x_past[i][1]=x[i][1];
+
+            x_past[i][0] = x[i][0];
+            x_past[i][1] = x[i][1];
         }
     }
     double ret_norm = 1. / (cnt * norm);
     omega_t *= ret_norm;
-    del_vs*=ret_norm;
+    del_vs *= ret_norm;
     del_thetax_t *= ret_norm;
     stack_theta += del_thetax_t;
+    del_theta_t *= ret_norm;
+    stack_theta0 += del_theta_t;
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
@@ -588,6 +596,13 @@ void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << stack_theta << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
+             "thetat_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << stack_theta0 << endl;
     file.close();
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
@@ -726,6 +741,13 @@ int main() {
     file.open(filename); // append
     file << "#t del_thetax" << endl;
     file.close();
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
+             "thetat_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
+    file.open(filename); // append
+    file << "#t del_thetax" << endl;
+    file.close();
     if (!out_setup()) {
         std::cout << "file name is too long" << endl;
         return -1;
@@ -761,7 +783,7 @@ int main() {
     constexpr unsigned long long int tmaxch = tmax / dt,
                                      tanimaxch = tmaxani / dt,
                                      tout_tdepch = 1. / dt;
-    ini_corr(x,x0,v1,v);
+    ini_corr(x, x0, v1, v);
 
     double tout = msdini / dt;
     double toutcoord = 0.;
