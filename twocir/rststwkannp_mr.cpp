@@ -24,6 +24,7 @@
 #define dtlg        1e-5
 #define dt          1e-5
 #define folder_name "stwmssnp5" // 40文字程度で大きすぎ;
+#define UPDATE_MAX(x,x_past) (x_past=(x>x_past)?x:x_past)
 #define msdBit      2
 #define msdini      0.01
 #define ratf        1.0
@@ -516,7 +517,7 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
         r = sqrt(r2);
         vt = ((x[i][0]) * v[i][1] - x[i][1] * v[i][0]) / r2;
         sum_vt += usr_abs(vt);
-        sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]);
+        sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1])*r;
         sum_vrl[0] += ((vt > 0) - (vt < 0)) * Np_1;
         sum_lzrl[0] += vt * Np_1;
 
