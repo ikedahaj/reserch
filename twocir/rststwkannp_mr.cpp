@@ -503,7 +503,7 @@ inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
 void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
                        long long j) { // para[0]:fai para[1]:vt* para[2];om*;
     double sum_vt = 0., sum_v = 0., vt, r, r2, sum_vrl[2] = {0., 0.},
-           sum_lzrl[2] = {0., 0.}, para3[3] = {0, 0, 0}, del_theta_td = 0.,
+           sum_lzrl[2] = {0., 0.}, para3[3] = {0, 0, 0}, del_theta_td = 0.,sum_om=0.,
            haikou = 0.;
     int           cnt = 0;
     static double theta_past[Np];
@@ -527,6 +527,7 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
             del_theta_td += M_PI2 * (int) ((atan_i - theta_past[i]) * M_1_PI);
             theta_past[i] = atan_i;
             haikou += M_PI2 * (int) ((theta_i[i] - atan_i) * M_1_PI);
+            sum_om+=vt;
         } else if (r2 > R_2cor2) {
             theta_past[i] = atan2(x[i][1], x[i][0]);
         }
@@ -534,9 +535,11 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
     para3[0] += (sum_vt / sum_v - M_2_PI) * bun_kai;
     para3[1] += sum_vrl[0];
     para3[2] += sum_lzrl[0];
-    del_theta_td /= cnt;
+    double bun=1./cnt;
+    del_theta_td *= bun;
     delta_theta += del_theta_td;
-    haikou /= cnt;
+    sum_om*=bun;
+    haikou *= bun;
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
@@ -544,7 +547,7 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
                                "fais_R%.3f.dat",
                       folder_name, lo, mass, tau, Rbit, v0, R);
     file.open(filename, std::ios::app); // append
-    file << j * dt << "\t" << para3[0] << "\t" << para3[1] << "\t" << para3[2]
+    file << j * dt << "\t" << para3[0] << "\t" << para3[1] << "\t" << para3[2]<<"\t"<<sum_om
          << endl;
     file.close();
     snprintf(filename, 128,
@@ -896,7 +899,7 @@ int main() {
              "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "haikou_theta_R%.3f.dat",
              folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename, std::ios::app);
+    file.open(filename);
     file << "#t del_theta_t" << endl;
     file.close();
 
