@@ -13,23 +13,23 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define Nn          50
-#define tmax        8000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      4000 // 緩和時間は10たうとする;
-#define tmaxani     500  //>tmaxの時プログラムを変更すること;
-#define tbitani     2
-#define dim         2           // 変えるときはEomを変えること;
-#define cut         1.122462048 // 3.
-#define skin        1.5
-#define dtlg        1e-5
-#define dt          1e-5
-#define folder_name "stwmssnp5" // 40文字程度で大きすぎ;
-#define UPDATE_MAX(x,x_past) (x_past=(x>x_past)?x:x_past)
-#define msdBit      2
-#define msdini      0.01
-#define ratf        1.0
-#define ratf_w      1.
-#define w_list      cell_list // ver_list or cell_list
+#define Nn                    50
+#define tmax                  8000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg                4000 // 緩和時間は10たうとする;
+#define tmaxani               500 //>tmaxの時プログラムを変更すること;
+#define tbitani               2
+#define dim                   2 // 変えるときはEomを変えること;
+#define cut                   1.122462048 // 3.
+#define skin                  1.5
+#define dtlg                  1e-5
+#define dt                    1e-5
+#define folder_name           "stwmssnp5" // 40文字程度で大きすぎ;
+#define UPDATE_MAX(x, x_past) (x_past = (x > x_past) ? x : x_past)
+#define msdBit                2
+#define msdini                0.01
+#define ratf                  1.0
+#define ratf_w                1.
+#define w_list                cell_list // ver_list or cell_list
 // #define polydispersity 0.3 // コードも変える;
 #define para3_tbit 1. // double;
 #define FLAG_MASS  0  // 1なら慣性あり0なら慣性なし;
@@ -38,22 +38,22 @@ using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-#define lo   0.7 // コンパイル時に代入する定数;
+#define lo   0.5 // コンパイル時に代入する定数;
 #define Rbit 0.  // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 #ifndef TAU
-#define TAU 50
+#define TAU 500
 #endif
 #ifndef MS
 #if FLAG_MASS == 1
-#define MS 50
+#define MS 1000
 #else
 #define MS 0.0000001
 #endif
 #endif
 #ifndef Rs
-#define Rs 10
+#define Rs 7
 #endif
 static constexpr double tau = TAU;
 static constexpr double mass = MS;
@@ -333,7 +333,7 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                     int (*list)[Nn]) {
 
     double        zeta = 1;
-    static double fluc = sqrt(2. * zeta  * dtlg);
+    static double fluc = sqrt(2. * zeta * dtlg);
     double        ri, riw, w2, w6, dUr;
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
@@ -503,8 +503,8 @@ inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
 void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
                        long long j) { // para[0]:fai para[1]:vt* para[2];om*;
     double sum_vt = 0., sum_v = 0., vt, r, r2, sum_vrl[2] = {0., 0.},
-           sum_lzrl[2] = {0., 0.}, para3[3] = {0, 0, 0}, del_theta_td = 0.,sum_om=0.,
-           haikou = 0.;
+           sum_lzrl[2] = {0., 0.}, para3[3] = {0, 0, 0}, del_theta_td = 0.,
+           sum_om = 0., haikou = 0.;
     int           cnt = 0;
     static double theta_past[Np];
     static double delta_theta = 0.;
@@ -517,9 +517,9 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
         r = sqrt(r2);
         vt = ((x[i][0]) * v[i][1] - x[i][1] * v[i][0]) / r2;
         sum_vt += usr_abs(vt);
-        sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1])*r;
+        sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]) * r;
         sum_vrl[0] += ((vt > 0) - (vt < 0)) * Np_1;
-        sum_lzrl[0] += vt * Np_1;
+        sum_lzrl[0] += vt * r2 * Np_1;
 
         if (r2 > R_1cor2) {
             cnt++;
@@ -527,7 +527,7 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
             del_theta_td += M_PI2 * (int) ((atan_i - theta_past[i]) * M_1_PI);
             theta_past[i] = atan_i;
             haikou += M_PI2 * (int) ((theta_i[i] - atan_i) * M_1_PI);
-            sum_om+=vt;
+            sum_om += vt;
         } else if (r2 > R_2cor2) {
             theta_past[i] = atan2(x[i][1], x[i][0]);
         }
@@ -535,10 +535,10 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
     para3[0] += (sum_vt / sum_v - M_2_PI) * bun_kai;
     para3[1] += sum_vrl[0];
     para3[2] += sum_lzrl[0];
-    double bun=1./cnt;
+    double bun = 1. / cnt;
     del_theta_td *= bun;
     delta_theta += del_theta_td;
-    sum_om*=bun;
+    sum_om *= bun;
     haikou *= bun;
     char     filename[128];
     ofstream file;
@@ -547,8 +547,8 @@ void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
                                "fais_R%.3f.dat",
                       folder_name, lo, mass, tau, Rbit, v0, R);
     file.open(filename, std::ios::app); // append
-    file << j * dt << "\t" << para3[0] << "\t" << para3[1] << "\t" << para3[2]<<"\t"<<sum_om
-         << endl;
+    file << j * dt << "\t" << para3[0] << "\t" << para3[1] << "\t" << para3[2]
+         << "\t" << sum_om << endl;
     file.close();
     snprintf(filename, 128,
                       "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
