@@ -195,7 +195,7 @@ void calc_force_1_24(double (*x)[dim2], double (*f)[dim], int (*list)[Nn]) {
                 w2 = 1. / dr2;
                 w6 = w2 * w2 * w2;
                 // w12 = w6 * w6;
-                dUr = 2. * (-w6 + 0.5) * w6 * w2; // polydispersity;
+                dUr = 24. * (-w6 + 0.5) * w6 * w2; // polydispersity;
                 f[i][0] -= dUr * dx;
                 f[list[i][j]][0] += dUr * dx;
                 f[i][1] -= dUr * dy;
