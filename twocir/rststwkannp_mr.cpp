@@ -877,14 +877,11 @@ int main() {
           << endl; // 処理に要した時間をミリ秒に変換
     file2.close();
 	std::ifstream ifs;
-	    snprintf(filename, 128,
-                      "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-                               "fais_R%.3f.dat",
-                      folder_name, lo, mass, tau, Rbit, v0, R);
-	ifs.open(filename);
+	ifs.open(file_fais);
 	double params_4[4],ti,ommax=-5;
 	int c_fai=0;
-	while(ifs>>ti>>params_4[0]>>params_4[1]>>params_4[2]>>params_4[3]){
+	while(!ifs.eof()){
+        ifs>>ti>>params_4[0]>>params_4[1]>>params_4[2]>>params_4[3];
 		UPDATE_MAX(abs(params_4[0]),faimax);
 		if(params_4[0]>0.3)c_fai++;
 		UPDATE_MAX(abs(params_4[1]),pibarmax);
@@ -898,7 +895,7 @@ int main() {
              "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/faiminmam%.3f.dat",
              folder_name, lo, mass, tau, Rbit, v0, mgn);
     file2.open(filename, std::ios::app);
-    file2 << R << " " << faimax << " " << count_fai << " " << pibarmax << " "
+    file2 << R << " " << faimax << " " << c_fai << " " << pibarmax << " "
           << lzmax <<" "<<ommax<< endl;
     file2.close();
 
