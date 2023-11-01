@@ -22,8 +22,8 @@
 #define cut                   1.122462048 // 3.
 #define skin                  1.5
 #define dtlg                  1e-5
-#define dt                    1e-5
-#define folder_name           "stwmssnp5" // 40文字程度で大きすぎ;
+#define dt                    4e-5
+#define folder_name           "stwmssnp6" // 40文字程度で大きすぎ;
 #define UPDATE_MAX(x, x_past) (x_past = (x > x_past) ? x : x_past)
 #define msdBit                2
 #define msdini                0.01
@@ -31,8 +31,8 @@
 #define ratf_w                1.
 #define w_list                cell_list // ver_list or cell_list
 // #define polydispersity 0.3 // コードも変える;
-#define para3_tbit 1. // double;
-#define FLAG_MASS  0  // 1なら慣性あり0なら慣性なし;
+#define para3_tbit 0.5 // double;
+#define FLAG_MASS  1   // 1なら慣性あり0なら慣性なし;
 using std::endl;
 using std::max;
 using std::min;
@@ -108,7 +108,10 @@ static constexpr int para3_bitn = 1;
 static constexpr double para3_bitlonch =
     (para3_tbit / para3_bitn < dt) ? 1 : (int) (para3_tbit / para3_bitn / dt);
 // till here;
-
+char foldername1[128];
+char foldername_ani[128];
+char foldername_coor[128];
+#include "analyzepart_single_circle.h"
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
                                           // 制度は10^-13程度;
     constexpr double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
@@ -218,7 +221,7 @@ void calc_force(double (*x)[dim], double (*f)[dim], int (*list)[Nn]) {
 
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
-    static constexpr double ddt = 1e-9;
+    static constexpr double ddt = 1e-7;
     static constexpr double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
     double                  ri, riw, w2, w6, dUr;
     calc_force(x, f, list);
@@ -500,71 +503,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     }
 }
 inline double usr_abs(double x) { return x * ((x > 0) - (x < 0)); }
-void          calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
-                       long long j) { // para[0]:fai para[1]:vt* para[2];om*;
-    double sum_vt = 0., sum_v = 0., vt, r, r2, sum_vrl[2] = {0., 0.},
-           sum_lzrl[2] = {0., 0.}, para3[3] = {0, 0, 0}, del_theta_td = 0.,
-           sum_om = 0., haikou = 0.;
-    int           cnt = 0;
-    static double theta_past[Np];
-    static double delta_theta = 0.;
-    // int                     count[2] = {0, 0};
-    // constexpr double bun = 1 / (para3_tbit / para3_bitlonch / dt);
-    constexpr double bun_kai = 1 / (1 - M_2_PI), R_1cor2 = (R - 1) * (R - 1),
-                     R_2cor2 = (R - 2) * (R - 2);
-    for (int i = 0; i < Np; ++i) {
-        r2 = x[i][0] * x[i][0] + x[i][1] * x[i][1];
-        r = sqrt(r2);
-        vt = ((x[i][0]) * v[i][1] - x[i][1] * v[i][0]) / r2;
-        sum_vt += usr_abs(vt);
-        sum_v += sqrt(v[i][0] * v[i][0] + v[i][1] * v[i][1]) * r;
-        sum_vrl[0] += ((vt > 0) - (vt < 0)) * Np_1;
-        sum_lzrl[0] += vt * r2 * Np_1;
 
-        if (r2 > R_1cor2) {
-            cnt++;
-            double atan_i = atan2(x[i][1], x[i][0]);
-            del_theta_td += M_PI2 * (int) ((atan_i - theta_past[i]) * M_1_PI);
-            theta_past[i] = atan_i;
-            haikou += M_PI2 * (int) ((theta_i[i] - atan_i) * M_1_PI);
-            sum_om += vt;
-        } else if (r2 > R_2cor2) {
-            theta_past[i] = atan2(x[i][1], x[i][0]);
-        }
-    }
-    para3[0] += (sum_vt / sum_v - M_2_PI) * bun_kai;
-    para3[1] += sum_vrl[0];
-    para3[2] += sum_lzrl[0];
-    double bun = 1. / cnt;
-    del_theta_td *= bun;
-    delta_theta += del_theta_td;
-    sum_om *= bun;
-    haikou *= bun;
-    char     filename[128];
-    ofstream file;
-    snprintf(filename, 128,
-                      "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-                               "fais_R%.3f.dat",
-                      folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename, std::ios::app); // append
-    file << j * dt << "\t" << para3[0] << "\t" << para3[1] << "\t" << para3[2]
-         << "\t" << sum_om << endl;
-    file.close();
-    snprintf(filename, 128,
-                      "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-                               "del_theta_R%.3f.dat",
-                      folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename, std::ios::app);
-    file << j * dt << "\t" << delta_theta << endl;
-    file.close();
-    snprintf(filename, 128,
-                      "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-                               "haikou_theta_R%.3f.dat",
-                      folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename, std::ios::app);
-    file << j * dt << "\t" << haikou << endl;
-    file.close();
-}
 void ini_hist(double *hist, int Nhist) {
     for (int i = 0; i < Nhist; ++i) {
         hist[i] = 0.;
@@ -574,18 +513,16 @@ void output_ini(double (*v)[dim], double (*x)[dim]) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "tyokkei.dat",
-             folder_name, lo, mass, tau, Rbit, v0);
+             "./%s/tyokkei.dat",
+             foldername_ani);
     file.open(filename /* std::ios::app*/); // append
     file << tmaxani << endl;
     for (int i = 0; i < Np; i++)
         file << 1 << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "coor_R%.3f_m%.3f_t0.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
+             "./%s/coor_R%.3f_m%.3f_t0.dat",
+             foldername1, R, mgn);
     file.open(filename); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
@@ -599,9 +536,8 @@ void output(double (*v)[dim], double (*x)[dim]) {
     ofstream   file;
 
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "coor_R%.3f_m%.3f_t%d.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn, l);
+             "./%s/coor_R%.3f_m%.3f_t%d.dat",
+             foldername1, R, mgn, l);
     file.open(filename); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
@@ -616,9 +552,8 @@ void output_ani(double (*v)[dim], double (*x)[dim], double *theta_i) {
     ofstream   file;
 
     snprintf(filename, 128,
-             "./%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
-             folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn, l);
+             "./%s/tyouwaenn_lo%.3f_tau%.3f_m%.3f_t%d.dat",
+             foldername_ani, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
@@ -669,83 +604,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     else
         return true;
 }
-void calc_corrini(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
-                  double (*v)[dim]) {
-    double xcor = 0., vcor = 0.;
-    for (int i = 0; i < Np; i++) {
-        x0[i][0] = x[i][0];
-        x0[i][1] = x[i][1];
-        xcor += (x[i][0] * x[i][0] + x[i][1] * x[i][1]) * Np_1;
-        v1[i][0] = v[i][0];
-        v1[i][1] = v[i][1];
-        vcor += (v[i][0] * v[i][0] + v[i][1] * v[i][1]) * Np_1;
-    }
-    char     filename[128];
-    ofstream file;
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "xcor_R%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename); // append
-    file << 0 << "\t" << xcor << endl;
-    file.close();
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "vcor_R%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename); // append
-    file << 0 << "\t" << vcor << endl;
-    file.close();
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "msd_R%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename); // append
-    file << "#t msd" << endl;
-    file.close();
-}
-void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
-               double (*v)[dim], unsigned long long j) {
-    double dr, xcor = 0., vcor = 0., msd = 0.;
 
-    for (int i = 0; i < Np; ++i) {
-        for (int j = 0; j < dim; ++j) {
-            xcor += x0[i][j] * x[i][j] * Np_1;
-            vcor += v1[i][j] * v[i][j] * Np_1;
-            dr = x[i][j] - x0[i][j];
-            msd += dr * dr * Np_1;
-        }
-    }
-    char     filename[128];
-    ofstream file;
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "xcor_R%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename, std::ios::app); // append
-    file << j * dt << "\t" << xcor << endl;
-    file.close();
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "vcor_R%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename, std::ios::app); // append
-    file << j * dt << "\t" << vcor << endl;
-    file.close();
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "msd_R%.3f_m%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R, mgn);
-    file.open(filename, std::ios::app); // append
-    file << j * dt << "\t" << msd << endl;
-    file.close();
-}
-
-inline void ini_para3(double *p) {
-    p[0] = 0.;
-    p[1] = 0.;
-    p[2] = 0.;
-}
 
 inline double usr_max(double a, double b) { return (a > b) ? a : b; }
 inline double usr_min(double a, double b) { return (a > b) ? b : a; }
@@ -865,43 +724,20 @@ int main() {
     ini_array(x_update);
     ini_array(f);
     ini_hist(theta, Np);
-    char foldername[128];
-    snprintf(foldername, 128, "%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f", folder_name,
+    snprintf(foldername1, 128, "%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f", folder_name,
              lo, mass, tau, Rbit, v0);
-    const char *fname = foldername;
+    const char *fname = foldername1;
     mkdir(fname, 0777);
-    snprintf(foldername, 128, "%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f",
+    snprintf(foldername_ani, 128, "%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f",
              folder_name, R, lo, mass, tau, Rbit, v0);
-    const char *fname3 = foldername;
+    const char *fname3 = foldername_ani;
     mkdir(fname3, 0777);
     if (!out_setup()) {
         std::cout << "file name is too long" << endl;
         return -1;
     }
-    std::cout << foldername << endl;
-    char     filename[128];
-    ofstream file;
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "fais_R%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename);
-    file << "# t fai lzb pib" << endl;
-    file.close();
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "del_theta_R%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename);
-    file << "#t del_theta" << endl;
-    file.close();
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
-             "haikou_theta_R%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, R);
-    file.open(filename);
-    file << "#t del_theta_t" << endl;
-    file.close();
+    std::cout << foldername1 << endl;
+    
 
     for (int j = 0; j < 1e7; ++j) {
         auto_list_update(x, x_update, list);
@@ -956,11 +792,10 @@ int main() {
                            para3_bitlonco = para3_bitlonch;
     long long int          kanit = tanibitch;
     unsigned long long int j = 0;
-    double                 fai3[3], faimax = -5., lzmax = -5., pibarmax = -5.;
+    double                  faimax = -5., lzmax = -5., pibarmax = -5.;
     int                    k, count_fai = 0, ituibi = 0;
-    ini_para3(fai3);
     calc_corrini(x, x0, v1, v);
-
+    calc_fai_ini();
     output_ini(v, x);
     while (j < tanimaxch) {
         ++j;
@@ -972,15 +807,7 @@ int main() {
             calc_fai(x, v, theta, j);
             para3_bitlonco += para3_bitlonch;
             if (j >= para3_tbitco) {
-                if (fai3[0] > faimax)
-                    faimax = fai3[0];
-                if (fai3[0] > 0.3)
-                    count_fai++;
-                if (usr_abs(fai3[1]) > pibarmax)
-                    pibarmax = usr_abs(fai3[1]);
-                if (usr_abs(fai3[2]) > lzmax)
-                    lzmax = usr_abs(fai3[2]);
-                ini_para3(fai3);
+
                 para3_tbitco += para3_tbitch;
             }
         }
@@ -1011,15 +838,6 @@ int main() {
             calc_fai(x, v, theta, j);
             para3_bitlonco += para3_bitlonch;
             if (j >= para3_tbitco) {
-                if (fai3[0] > faimax)
-                    faimax = fai3[0];
-                if (fai3[0] > 0.3)
-                    count_fai++;
-                if (usr_abs(fai3[1]) > pibarmax)
-                    pibarmax = usr_abs(fai3[1]);
-                if (usr_abs(fai3[2]) > lzmax)
-                    lzmax = usr_abs(fai3[2]);
-                ini_para3(fai3);
                 para3_tbitco += para3_tbitch;
             }
             /*
@@ -1044,7 +862,7 @@ int main() {
             counthazure++;
     }
     end = std::chrono::system_clock::now(); // 計測終了時間
-    // char     filename[128];
+    char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
