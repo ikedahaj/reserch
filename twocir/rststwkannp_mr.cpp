@@ -13,47 +13,48 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define Nn                    50
-#define tmax                  8000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg                4000 // 緩和時間は10たうとする;
-#define tmaxani               500 //>tmaxの時プログラムを変更すること;
-#define tbitani               2
-#define dim                   2 // 変えるときはEomを変えること;
-#define cut                   1.122462048 // 3.
-#define skin                  1.5
-#define dtlg                  1e-5
-#define dt                    4e-5
-#define folder_name           "stwmssnp6" // 40文字程度で大きすぎ;
-#define UPDATE_MAX(x, x_past) (x_past = (x > x_past) ? x : x_past)
-#define msdBit                2
-#define msdini                0.01
-#define ratf                  1.0
-#define ratf_w                1.
-#define w_list                cell_list // ver_list or cell_list
+#define Nn          50
+#define tmax        8000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      8000 // 緩和時間は10たうとする;
+#define tmaxani     2000  //>tmaxの時プログラムを変更すること;
+#define tbitani     5
+#define dim         2           // 変えるときはEomを変えること;
+#define cut         1.122462048 // 3.
+#define skin        1.5
+#define dtlg        1e-5
+#define dt          1e-4
+#define folder_name "stwmssnp8" // 40文字程度で大きすぎ;
+#define UPDATE_MAX(x,x_past) (x_past=(x>x_past)?x:x_past)
+#define msdBit      5
+#define msdini      0.01
+#define temp 5.0 //langevinで用いる温度;
+#define ratf        1.0
+#define ratf_w      1.
+#define w_list      cell_list // ver_list or cell_list
 // #define polydispersity 0.3 // コードも変える;
-#define para3_tbit 0.5 // double;
-#define FLAG_MASS  1   // 1なら慣性あり0なら慣性なし;
+#define para3_tbit 0.01 // double;
+#define FLAG_MASS  1  // 1なら慣性あり0なら慣性なし;
 using std::endl;
 using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-#define lo   0.5 // コンパイル時に代入する定数;
+#define lo   0.7 // コンパイル時に代入する定数;
 #define Rbit 0.  // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 #ifndef TAU
-#define TAU 500
+#define TAU 50
 #endif
 #ifndef MS
 #if FLAG_MASS == 1
-#define MS 1000
+#define MS 0.1
 #else
 #define MS 0.0000001
 #endif
 #endif
 #ifndef Rs
-#define Rs 7
+#define Rs 10
 #endif
 static constexpr double tau = TAU;
 static constexpr double mass = MS;
@@ -336,7 +337,7 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                     int (*list)[Nn]) {
 
     double        zeta = 1;
-    static double fluc = sqrt(2. * zeta * dtlg);
+    static double fluc = sqrt(2. * zeta *temp * dtlg);
     double        ri, riw, w2, w6, dUr;
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
@@ -598,6 +599,7 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
                     rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
                   2.);
     file << "eta=1,t=1" << endl;
+file<<"temp"<<temp<<endl;
     file.close();
     if (test == -1)
         return false;
@@ -736,7 +738,7 @@ int main() {
         std::cout << "file name is too long" << endl;
         return -1;
     }
-    std::cout << foldername1 << endl;
+    std::cout << foldername_ani << endl;
     
 
     for (int j = 0; j < 1e7; ++j) {
@@ -874,12 +876,30 @@ int main() {
                  .count()
           << endl; // 処理に要した時間をミリ秒に変換
     file2.close();
+	std::ifstream ifs;
+	    snprintf(filename, 128,
+                      "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+                               "fais_R%.3f.dat",
+                      folder_name, lo, mass, tau, Rbit, v0, R);
+	ifs.open(filename);
+	double params_4[4],ti,ommax=-5;
+	int c_fai=0;
+	while(ifs>>ti>>params_4[0]>>params_4[1]>>params_4[2]>>params_4[3]){
+		UPDATE_MAX(abs(params_4[0]),faimax);
+		if(params_4[0]>0.3)c_fai++;
+		UPDATE_MAX(abs(params_4[1]),pibarmax);
+		UPDATE_MAX(abs(params_4[2]),lzmax);
+		UPDATE_MAX(abs(params_4[3]),ommax);
+	}
+	ifs.close();
+	
+
     snprintf(filename, 128,
              "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/faiminmam%.3f.dat",
              folder_name, lo, mass, tau, Rbit, v0, mgn);
     file2.open(filename, std::ios::app);
     file2 << R << " " << faimax << " " << count_fai << " " << pibarmax << " "
-          << lzmax << endl;
+          << lzmax <<" "<<ommax<< endl;
     file2.close();
 
     std::cout << "done" << endl;
