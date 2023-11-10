@@ -764,7 +764,7 @@ int main() {
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "fais.dat",
              folder_name, R, lo, mass, tau, Rbit, v0);
-    file.open(foldername, std::ios::app); // append
+    file.open(foldername); // append
     file << "# t fai lzb pib" << endl;
     file.close();
     while (tout < tmax) {

@@ -259,7 +259,7 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
     file.open(filename, std::ios::app); // append
     for (int i = 0; i < Np; ++i) {
-        file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
+        file  << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
              << "\t" << v[i][1] << endl;
     }
     file.close();
@@ -274,7 +274,7 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
             folder_name, lo, tau, mgn, v0, lo, tau, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
-        file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
+        file  << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
              << "\t" << v[i][1] << endl;
     }
     file.close();

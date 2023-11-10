@@ -10,36 +10,40 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define Nn          50
-#define tmax        2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      2000 // 緩和時間は10たうとする;
-#define tmaxani     500  //>tmaxの時プログラムを変更すること;
-#define tbitani     2
-#define dim         2           // 変えるときはEomを変えること;
-#define cut         1.122462048 // 3.
-#define skin        1.5
-#define dtlg        1e-5
-#define dt          5e-6
-#define folder_name "stwmssnp" // 40文字程度で大きすぎ;
-#define msdbit      1.1
-#define msdini      0.01
-#define ratf        1.
+#define Nn            50
+#define tmax          2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg        4000 // 緩和時間は10たうとする;
+#define tmaxani       500  //>tmaxの時プログラムを変更すること;
+#define tbitani       2
+#define dim           2           // 変えるときはEomを変えること;
+#define cut           1.122462048 // 3.
+#define skin          1.5
+#define dtlg          1e-5
+#define dt            1e-5
+#define temp          0.1
+#define FLAG_LANGEVIN 1 // 1ならlangevin0ならabp;
+#if FLAG_LANGEVIN == 1
+#define folder_name "langevin" // 40文字程度で大きすぎ;
+#else
+#define folder_name "stwmssnp2"
+#endif
+#define msdBit 2
+#define msdini 0.01
+#define ratf   1.
 // #define polydispersity 0.3 // コードも変える;
 #define para3_tbit 0.5 // double;
 using std::endl;
-using std::max;
-using std::min;
 using std::ofstream;
 // #define radios 1.
 #define lo   0.7 // コンパイル時に代入する定数;
 #define Rbit 0.  // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
-
-static constexpr double tau = 40.;
-static constexpr double mass = 20.;
+static constexpr double msdbit = msdBit / dt;
+static constexpr double tau = 50.;
+static constexpr double mass = 80.;
 static constexpr double mgn = 0.;
-static constexpr double R = 13.07252733;//5.; // 固定;// ,0.1より大きいこと;
+static constexpr double R = 10; // 固定;// ,0.1より大きいこと;
 ////parameters
 constexpr double
 usr_arccos(double theta) { // 1付近の誤差0.1程度.シミュレーションでは使うな;
@@ -77,7 +81,7 @@ static constexpr double x0limit = R * usr_sqrt(1 - Rbit * Rbit * 0.25);
 static constexpr int    tcoorch = (tau > 10) ? tau / dt : 10 / dt;
 static constexpr double const_f = -48. * ratf;
 // χとかの出す時間について::１万アンサンブルぐらい取るようにパラメータを設定;
-static constexpr int para3_bitn = (Np > 1e4) ? 1 : (int) (1e4 / Np);
+static constexpr int para3_bitn = (Np > 1) ? 1 : (int) (1e4 / Np);
 // 出す間隔単位はt0;
 static constexpr double para3_bitt =
     (para3_tbit / para3_bitn < dt) ? dt : para3_tbit / para3_bitn;
@@ -85,14 +89,14 @@ static constexpr double para3_bitt =
 
 void usr_sincos(double kaku, double *x) { // x[0]がcos,x[1]issin;
                                           // 制度は10^-13程度;
-    constexpr double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
-                                -1.0 / (3 * 4 * 5 * 6 * 7 * 8),
-                                1.0 / (3 * 4 * 5 * 6),
-                                -1.0 / (3 * 4),
-                                1.0 / (2 * 3 * 4 * 5 * 6 * 7 * 8 * 9),
-                                -1.0 / (2 * 3 * 4 * 5 * 6 * 7),
-                                1.0 / (2 * 3 * 4 * 5),
-                                -1.0 / (2 * 3)};
+    constexpr static double waru[8] = {1.0 / (3 * 4 * 5 * 6 * 7 * 8 * 9 * 10),
+                                       -1.0 / (3 * 4 * 5 * 6 * 7 * 8),
+                                       1.0 / (3 * 4 * 5 * 6),
+                                       -1.0 / (3 * 4),
+                                       1.0 / (2 * 3 * 4 * 5 * 6 * 7 * 8 * 9),
+                                       -1.0 / (2 * 3 * 4 * 5 * 6 * 7),
+                                       1.0 / (2 * 3 * 4 * 5),
+                                       -1.0 / (2 * 3)};
     kaku *= 0.0625; // 0.03125;//kaku/=1/2^m;
     double c, s, z = kaku * kaku;
     c = ((((waru[0] * z + waru[1]) * z + waru[2]) * z + waru[3]) * z + 1.) * z;
@@ -122,20 +126,20 @@ bool ini_coord_twocircles(double (*x)[dim]) {
                       Np); // radiousを変える時はここを変える;
     int namari = Np % 4;
     int nmax = Np / 4, k = 0;
-    for (int i = 1; i <= nmax; i++) {
-        for (int j = 1; j <= nmax; j++) {
-            double r2[2] = { i * bit,  j * bit};
-            if (dist2right(r2) > R2 * R2)
-                break;
-            x[k][0] = i * bit;
-            x[k][1] = j * bit;
-            x[k + nmax][0] = i * bit;
-            x[k + nmax][1] = -j * bit;
-            x[k + 2 * nmax][0] = -i * bit;
-            x[k + 2 * nmax][1] = j * bit;
-            x[k + 3 * nmax][0] = -i * bit;
-            x[k + 3 * nmax][1] = -j * bit;
-            k++;
+    for (int i = 0; i < nmax; i++) {
+        for (int j = 0; j < nmax; j++) {
+            double r2[2] = {0.5 + i * bit, (0.5 + j * bit)};
+            if (dist2right(r2) < R2 * R2 || dist2left(r2) <= R2 * R2) {
+                x[k][0] = 0.5 + i * bit;
+                x[k][1] = 0.5 + j * bit;
+                x[k + nmax][0] = 0.5 + i * bit;
+                x[k + nmax][1] = -0.5 - j * bit;
+                x[k + 2 * nmax][0] = -0.5 - i * bit;
+                x[k + 2 * nmax][1] = 0.5 + j * bit;
+                x[k + 3 * nmax][0] = -0.5 - i * bit;
+                x[k + 3 * nmax][1] = -0.5 - j * bit;
+                k++;
+            }
             if (k >= nmax)
                 break;
         }
@@ -194,10 +198,11 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
     static constexpr double ddt = 1e-9;
     static constexpr double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
-    double                  ri, riw, w2, w6, dUr;
+    double                  vi[2], ri, riw, w2, w6, dUr, fiw[dim];
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
-
+        fiw[0] = 0.;
+        fiw[1] = 0.;
         // /*force bitween wall;
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
@@ -208,8 +213,8 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_rignt);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_rignt);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
@@ -220,8 +225,8 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_left);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_left);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
@@ -232,14 +237,14 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][1] += dUr * x[i][1];
+                fiw[1] = dUr * x[i][1];
             }
         }
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         // usr_sincos(theta_i[i], sico);
-        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv;
-        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1]) * M_inv;
+        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + fiw[0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + fiw[1]) * M_inv;
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
@@ -248,12 +253,13 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                   int (*list)[Nn], double *theta_i) {
 
-    double zeta = 1.0, ddt = 1e-9,const_fst=-4800.;
-    double fluc = sqrt(2. * zeta * 5. * ddt);
-    double ri, riw, w2, w6, dUr;
+    double zeta = 1.0, ddt = 1e-9;
+    double fluc = sqrt(2. * zeta * ddt);
+    double vi[2], ri, riw, w2, w6, dUr, fiw[dim];
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
-
+        fiw[0] = 0.;
+        fiw[1] = 0.;
         // /*force bitween wall;
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
@@ -263,9 +269,9 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = const_fst * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_rignt);
-                f[i][1] += dUr * x[i][1];
+                dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
+                fiw[0] = dUr * (x[i][0] - center_rignt);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
@@ -275,9 +281,9 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = const_fst * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_left);
-                f[i][1] += dUr * x[i][1];
+                dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
+                fiw[0] = dUr * (x[i][0] - center_left);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
@@ -287,13 +293,13 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w2 = 1. / (riw * riw);
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
-                dUr = const_fst * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][1] += dUr * x[i][1];
+                dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
+                fiw[1] = dUr * x[i][1];
             }
         }
         for (int j = 0; j < dim; j++) {
-            v[i][j] +=
-                -zeta * v[i][j] * ddt + f[i][j] * ddt + fluc * gaussian_rand();
+            v[i][j] += -zeta * v[i][j] * ddt + f[i][j] * ddt + fiw[j] * ddt +
+                       fluc * gaussian_rand();
             x[i][j] += v[i][j] * ddt;
         }
     }
@@ -301,12 +307,13 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
 void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                     int (*list)[Nn]) {
 
-    double zeta = 1.0;
-    double fluc = sqrt(2. * zeta * 5. * dtlg);
-    double ri, riw, w2, w6, dUr;
+    static double zeta = 1. / 80;
+    static double fluc = sqrt(2. * zeta * temp * dtlg);
+    double        vi[2], ri, riw, w2, w6, dUr, fiw[dim];
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
-
+        fiw[0] = 0.;
+        fiw[1] = 0.;
         // /*force bitween wall;
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
@@ -317,8 +324,8 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_rignt);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_rignt);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
@@ -329,8 +336,8 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_left);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_left);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
@@ -341,12 +348,12 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][1] += dUr * x[i][1];
+                fiw[1] = dUr * x[i][1];
             }
         }
         for (int j = 0; j < dim; j++) {
-            v[i][j] +=
-                -v[i][j] * dtlg + f[i][j] * dtlg + fluc * gaussian_rand();
+            v[i][j] += (-v[i][j] * zeta + f[i][j] + fiw[j]) * dtlg +
+                       fluc * gaussian_rand();
             x[i][j] += v[i][j] * dtlg;
         }
     }
@@ -355,10 +362,11 @@ void eom_8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
            int (*list)[Nn], double *theta_i) {
     // double                  sico[2];
     static constexpr double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
-    double                  ri, riw, w2, w6, dUr;
+    double                  vi[2], ri, riw, w2, w6, dUr, fiw[dim];
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
-
+        fiw[0] = 0.;
+        fiw[1] = 0.;
         // /*force bitween wall;
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
@@ -369,8 +377,8 @@ void eom_8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_rignt);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_rignt);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
@@ -381,8 +389,8 @@ void eom_8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_left);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_left);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
@@ -393,24 +401,26 @@ void eom_8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][1] += dUr * x[i][1];
+                fiw[1] = dUr * x[i][1];
             }
         }
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         // usr_sincos(theta_i[i], sico);
-        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv;
-        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1]) * M_inv;
+        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + fiw[0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + fiw[1]) * M_inv;
         x[i][0] += v[i][0] * dtlg;
         x[i][1] += v[i][1] * dtlg;
     }
 }
 void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
-    double                  ri, riw, w2, w6, dUr;
-    static constexpr double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
+    double                  ri, riw, w2, w6, dUr, fiw[dim];
+    constexpr static double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
     calc_force(x, f, list);
     for (int i = 0; i < Np; i++) {
+        fiw[0] = 0.;
+        fiw[1] = 0.;
         // /*force bitween wall;
         if (x[i][0] > 0.) {
             ri = sqrt(dist2right(x[i]));
@@ -421,8 +431,8 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_rignt);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_rignt);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] < 0.) {
             ri = sqrt(dist2left(x[i]));
@@ -433,8 +443,8 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][0] += dUr * (x[i][0] - center_left);
-                f[i][1] += dUr * x[i][1];
+                fiw[0] = dUr * (x[i][0] - center_left);
+                fiw[1] = dUr * x[i][1];
             }
         } else if (x[i][0] == 0.) {
             ri = abs(x[i][1]);
@@ -445,15 +455,15 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                 w6 = w2 * w2 * w2;
                 // w12=w6*w6;
                 dUr = const_f * (w6 - 0.5) * w6 / (riw * ri);
-                f[i][1] += dUr * x[i][1];
+                fiw[1] = dUr * x[i][1];
             }
         }
         // till here*/
         theta_i[i] += D * gaussian_rand() + Mg;
         theta_i[i] -= (int) (theta_i[i] * M_1_PI) * M_PI2;
         // usr_sincos(theta_i[i], sico);
-        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0]) * M_inv;
-        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1]) * M_inv;
+        v[i][0] += (-v[i][0] + v0 * cos(theta_i[i]) + f[i][0] + fiw[0]) * M_inv;
+        v[i][1] += (-v[i][1] + v0 * sin(theta_i[i]) + f[i][1] + fiw[1]) * M_inv;
         x[i][0] += v[i][0] * dt;
         x[i][1] += v[i][1] * dt;
     }
@@ -620,11 +630,8 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
     file << "χの平均を取る間隔" << para3_bitt << endl;
     file << "kaiの出す感覚" << para3_tbit << endl;
     file << "ratf=" << ratf << endl;
-    file << "lo2="
-         << Np / ((2. * M_2_PI * R * R *
-                   (M_PI - usr_arccos(rbit_2) +
-                    rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
-                  2.);
+
+    file << "zeta=1/80,temp=" << temp << endl;
     file.close();
     if (test == -1)
         return false;
@@ -632,65 +639,77 @@ bool out_setup() { // filenameが１２８文字を超えていたらfalseを返
         return true;
 }
 void calc_corrini(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
-                  double (*v)[dim], double *xcor, double *vcor, double *msd) {
+                  double (*v)[dim]) {
+    double xcor = 0., vcor = 0.;
     for (int i = 0; i < Np; i++) {
         x0[i][0] = x[i][0];
         x0[i][1] = x[i][1];
-        xcor[0] = x[i][0] * x[i][0] + x[i][1] * x[i][1];
+        xcor = x[i][0] * x[i][0] + x[i][1] * x[i][1];
         v1[i][0] = v[i][0];
         v1[i][1] = v[i][1];
-        vcor[0] = v[i][0] * v[i][0] + v[i][1] * v[i][1];
+        vcor = v[i][0] * v[i][0] + v[i][1] * v[i][1];
     }
-}
-int calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
-              double (*v)[dim], double *xcor, double *vcor, double *msd) {
-    double     dr;
-    static int k = 1;
-    for (int i = 0; i < Np; ++i) {
-        for (int j = 0; j < dim; ++j) {
-            xcor[k] += x0[i][j] * x[i][j] * Np_1;
-            vcor[k] += v1[i][j] * v[i][j] * Np_1;
-            dr = x[i][j] - x0[i][j];
-            msd[k - 1] += dr * dr * Np_1;
-        }
-    }
-    k++;
-    return k - 1;
-}
-
-void outputcorr(double *msd, double *vcor, double *t, int countout,
-                double *msd2) {
     char     filename[128];
-    double   v_theta;
     ofstream file;
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "xcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
-    for (int i = 0; i < countout; ++i) {
-        file << t[i] << "\t" << msd[i] << endl;
-    }
+    file << 0 << "\t" << xcor << endl;
     file.close();
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "vcor_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
-    for (int i = 0; i < countout; ++i) {
-        file << t[i] << "\t" << vcor[i] << endl;
-    }
+    file << 0 << "\t" << vcor << endl;
     file.close();
     snprintf(filename, 128,
              "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
              "msd_lo%.3f_tau%.3f_m%.3f.dat",
              folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
     file.open(filename /*,std::ios::app*/); // append
-    for (int i = 0; i < countout; ++i) {
-        file << t[i] << "\t" << msd2[i] << endl;
-    }
+    file << "#t msd" << endl;
     file.close();
 }
+
+void calc_corr(double (*x)[dim], double (*x0)[dim], double (*v1)[dim],
+               double (*v)[dim], long long int j) {
+    double dr, xcor = 0., vcor = 0., msd = 0.;
+    for (int i = 0; i < Np; ++i) {
+        for (int j = 0; j < dim; ++j) {
+            xcor += x0[i][j] * x[i][j] * Np_1;
+            vcor += v1[i][j] * v[i][j] * Np_1;
+            dr = x[i][j] - x0[i][j];
+            msd += dr * dr * Np_1;
+        }
+    }
+    char     filename[128];
+    ofstream file;
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "xcor_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << xcor << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "vcor_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << vcor << endl;
+    file.close();
+    snprintf(filename, 128,
+             "./%sR%.1flo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "msd_lo%.3f_tau%.3f_m%.3f.dat",
+             folder_name, R, lo, mass, tau, Rbit, v0, lo, tau, mgn);
+    file.open(filename, std::ios::app); // append
+    file << j * dt << "\t" << msd << endl;
+    file.close();
+}
+
 inline void ini_para3(double *p) {
     p[0] = 0.;
     p[1] = 0.;
@@ -829,21 +848,10 @@ int main() {
     file.open(filename);
     file << "# t fai lzb pib" << endl;
     file.close();
-    while (tout < tmax) {
 
-        tout *= msdbit;
-
-        countout++;
-    }
-    countout += 5;
-    double msd[countout], t[countout], vcor[countout], msd2[countout];
-    ini_hist(msd, countout);
-    ini_hist(t, countout);
-    ini_hist(msd2, countout);
-    ini_hist(vcor, countout);
     j = 0;
 
-    while (j < 1e9) {
+    while (j < 1e7) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
         eom_langevin(v, x, f, list, theta);
@@ -859,7 +867,7 @@ int main() {
         }
     }
     std::cout << "passed kasanari!" << endl;
-    unsigned long long int tmaxbefch = R / (dtlg);
+    unsigned long long int tmaxbefch = 1000 / (dtlg);
     while (j < tmaxbefch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
@@ -875,6 +883,7 @@ int main() {
         }
     }
     std::cout << "passed kakimaze!" << endl;
+#if FLAG_LANGEVIN != 1
     j = 0;
     while (j < 1e7) {
         ++j;
@@ -896,6 +905,7 @@ int main() {
             return -1;
         }
     }
+#endif
     std::cout << "passed owari!" << endl;
     int ituibi = 0, tanibitch = tbitani / dt, para3bittch = para3_bitt / dt,
         para3_tbitch = para3_tbit / dt;
@@ -909,14 +919,17 @@ int main() {
     double                 fai3[3];
     int                    k;
     ini_para3(fai3);
-    calc_corrini(x, x0, v1, v, msd, vcor, msd2);
-    t[0] = 0.;
+    calc_corrini(x, x0, v1, v);
     output_ini(v, x);
     output_iniani(v, x);
     while (j < tanimaxch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
+#if FLAG_LANGEVIN == 1
+        eom_langevin_h(v, x, f, list);
+#else
         eom_abp1(v, x, f, list, theta);
+#endif
         // make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= para3_bittco) {
             calc_fai(x, v, fai3);
@@ -937,15 +950,18 @@ int main() {
             }
         } //*/
         if (j >= tout) {
-            k = calc_corr(x, x0, v1, v, msd, vcor, msd2);
-            t[k] = j * dt;
-            tout *= msdbit;
+            calc_corr(x, x0, v1, v, j);
+            tout += msdbit;
         }
     }
     while (j < tmaxch) {
         ++j;
         auto_list_update(&disp_max, x, x_update, list);
+#if FLAG_LANGEVIN == 1
+        eom_langevin_h(v, x, f, list);
+#else
         eom_abp1(v, x, f, list, theta);
+#endif
         if (j >= para3_bittco) {
             calc_fai(x, v, fai3);
             para3_bittco += para3bittch;
@@ -961,9 +977,8 @@ int main() {
             } //*/
         }
         if (j >= tout) {
-            k = calc_corr(x, x0, v1, v, msd, vcor, msd2);
-            t[k] = j * dt;
-            tout *= msdbit;
+            calc_corr(x, x0, v1, v, j);
+            tout += msdbit;
         }
     }
     int    counthazure = 0, maxnum = 0;
@@ -987,7 +1002,6 @@ int main() {
                  .count()
           << endl; // 処理に要した時間をミリ秒に変換
     file2.close();
-    outputcorr(msd, vcor, t, countout, msd2);
     std::cout << "done" << endl;
     return 0;
 }

@@ -13,7 +13,6 @@
 
 #include "BM.h"
 
-
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define lo          0.4 // コンパイル時に代入する定数;
 #define Nn          50
@@ -21,7 +20,6 @@
 #define tmax        2000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      1000 // 緩和時間は10たうとする;
 #define v0          1.
-#define tau         100. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
 #define mgn         0. // Omega=omega/tau,mass,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     2
@@ -49,8 +47,12 @@ using std::ofstream;
 #define Ms 0.000000000001
 #endif
 #endif
+#ifndef TAU
+#define TAU 100
+#endif
 static constexpr double R_in = 2.5;
 static constexpr double mass = Ms;
+static constexpr double tau = TAU;
 static constexpr int    Np = 4 * (R * R - R_in * R_in) * lo;
 static constexpr double cut2 = cut * cut;
 static constexpr double M_PI2 = 2. * M_PI;
@@ -268,23 +270,23 @@ void calc_fai_ini() {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "./%sR%.1frs%.1flo%.2ftau%.3fMs%.3fv0%.1f/"
              "fais_R%.3f.dat",
-             folder_name, lo, mass, tau, 0, v0, R);
+             folder_name, R, R_in, lo, tau, mass, v0, R);
     file.open(filename); // append
     file << "t fai pibar vtheta" << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "./%sR%.1frs%.1flo%.2ftau%.3fMs%.3fv0%.1f/"
              "om_lim_R%.3f.dat",
-             folder_name, lo, mass, tau, 0, v0, R);
+             folder_name, R, R_in, lo, tau, mass, v0, R);
     file.open(filename);
     file << "t om_out om_in" << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "./%sR%.1frs%.1flo%.2ftau%.3fMs%.3fv0%.1f/"
              "haikou_theta_R%.3f.dat",
-             folder_name, lo, mass, tau, 0, v0, R);
+             folder_name, R, R_in, lo, tau, mass, v0, R);
     file.open(filename);
     file << "t haikou_out haikou_in" << endl;
     file.close();
@@ -324,24 +326,24 @@ void calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "./%sR%.1frs%.1flo%.2ftau%.3fMs%.3fv0%.1f/"
              "fais_R%.3f.dat",
-             folder_name, lo, mass, tau, 0, v0, R);
+             folder_name, R, R_in, lo, tau, mass, v0, R);
     file.open(filename, std::ios::app); // append
     file << j * dt << "\t" << fai << "\t" << pibar << "\t" << sum_vt << "\t"
          << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "./%sR%.1frs%.1flo%.2ftau%.3fMs%.3fv0%.1f/"
              "om_lim_R%.3f.dat",
-             folder_name, lo, mass, tau, 0, v0, R);
+             folder_name, R, R_in, lo, tau, mass, v0, R);
     file.open(filename, std::ios::app);
     file << j * dt << "\t" << om_out << "\t" << om_in << endl;
     file.close();
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/"
+             "./%sR%.1frs%.1flo%.2ftau%.3fMs%.3fv0%.1f/"
              "haikou_theta_R%.3f.dat",
-             folder_name, lo, mass, tau, 0, v0, R);
+             folder_name, R, R_in, lo, tau, mass, v0, R);
     file.open(filename, std::ios::app);
     file << j * dt << "\t" << haikou_out << "\t" << haikou_in << endl;
     file.close();
@@ -362,7 +364,7 @@ void output(double (*v)[dim], double (*x)[dim]) {
     file.close();
     l++;
 }
-void output_ani_ini(double (*v)[dim], double (*x)[dim]) {
+void output_ani_ini(double (*v)[dim], double (*x)[dim],double *theta) {
     char     filename[128];
     ofstream file;
     sprintf(filename,
@@ -371,7 +373,7 @@ void output_ani_ini(double (*v)[dim], double (*x)[dim]) {
             folder_name, R, R_in, lo, tau, mass, v0, mgn, 0);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
-        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << '\t' << v[i][1]<<" "<<theta[i]
              << endl;
     }
     file.close();
@@ -385,7 +387,7 @@ void output_ani_ini(double (*v)[dim], double (*x)[dim]) {
         file << 1 << endl;
     }
 }
-void output_ani(double (*v)[dim], double (*x)[dim]) {
+void output_ani(double (*v)[dim], double (*x)[dim],double *theta) {
     static int l = 1;
     char       filename[128];
     ofstream   file;
@@ -395,7 +397,7 @@ void output_ani(double (*v)[dim], double (*x)[dim]) {
             folder_name, R, R_in, lo, tau, mass, v0, mgn, l);
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
-        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
+        file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]<<'	'<<theta[i]
              << endl;
     }
     file.close();
@@ -684,7 +686,7 @@ int main() {
     double             tout = msdini / dt, toutcoord = 0, out_para3_seki = 0;
     long long int      kanit = 0;
     ini_corr(x, v, x0, v1);
-    output_ani_ini(v, x);
+    output_ani_ini(v, x,theta);
     calc_fai_ini();
     while (j < tanimaxch) {
         ++j;
@@ -694,7 +696,7 @@ int main() {
             out_para3_seki += out_para3ch;
             calc_fai(x, v, theta, j);
             if (j >= kanit) {
-                output_ani(v, x);
+                output_ani(v, x,theta);
                 kanit += tanibitch;
                 if (j >= toutcoord) {
                     output(v, x);

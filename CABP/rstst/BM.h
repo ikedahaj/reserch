@@ -1,5 +1,6 @@
 double unif_rand(double left, double right) {
-    return left + (right - left) * rand() / RAND_MAX;
+    static constexpr double RAND_MAX_1=1./RAND_MAX;
+    return left + (right - left) * rand() *RAND_MAX_1;
 }
 
 double gaussian_rand(void) {

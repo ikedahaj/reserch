@@ -10,23 +10,23 @@
 #include "BM.h"
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
-#define lo          0.7 // コンパイル時に代入する定数;
+#define lo          0.01 // コンパイル時に代入する定数;
 #define Nn          50
 #define R           10. // 固定;// ,0.1より大きいこと;
-#define tmax        5000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmax        500 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg      2000 // 緩和時間は10たうとする;
-#define Rbit        1.8  // delta/R,Rにすると穴がなくなる;
+#define Rbit        0.  // delta/R,Rにすると穴がなくなる;
 #define v0          1.
-#define tau         40. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
-#define mgn         0.  // Omega=omega/tau,ここではomegaを入れること;
+#define tau         10. // コンパイル時に-D{変数名}={値}　例:-Dtau=80　とすること;
+#define mgn         0.25  // Omega=omega/tau,ここではomegaを入れること;
 #define tmaxani     500 //>tmaxの時プログラムを変更すること;
 #define tbitani     1
 #define dim         2           // 変えるときはEomを変えること;
 #define cut         1.122462048 // 3.
 #define skin        1.5
-#define dtlg        0.000005
-#define dt          0.000005
-#define folder_name "stw" // 40文字程度で大きすぎ;
+#define dtlg        0.00001
+#define dt          0.00001
+#define folder_name "stwsin" // 40文字程度で大きすぎ;
 #define msdbit      1.1
 #define msdini      0.01
 // #define polydispersity 0.2 コードも変える;
@@ -181,7 +181,7 @@ void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i, int timei) {
     double           ri, riw, aij, w2, w6, dUr, fiw[dim], sinco[2];
     constexpr double ddt = 0.0000001, D = usr_sqrt(2. * ddt / 0.01);
-    calc_force(x, f, a, list);
+    // calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
@@ -234,7 +234,7 @@ void eom_abp8(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double                  ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
     constexpr static double D = usr_sqrt(2. * dt / 0.01);
-    calc_force(x, f, a, list);
+    // calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
@@ -287,7 +287,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim], double *a,
               int (*list)[Nn], double *theta_i) {
     double                  ri, riw, aij, w2, w6, dUr, fiw[dim], sico[2];
     constexpr static double D = usr_sqrt(2. * dt / tau);
-    calc_force(x, f, a, list);
+    // calc_force(x, f, a, list);
     for (int i = 0; i < Np; i++) {
         fiw[0] = 0.;
         fiw[1] = 0.;
@@ -342,24 +342,6 @@ void ini_hist(double *hist, int Nhist) {
     }
 }
 
-void make_v_thetahist(double (*x)[dim], double (*v)[dim], double(*hist),
-                      double *hist2, double *lohist) {
-    // lohist  と一緒に運用し、outputでv_theta[i]/lo[i];
-    // v_thetaとomegaを算出、histがｖhist2がΩ;
-    double              v_t, dr;
-    const static double bunbo = 1. / (floor(tmax / dt));
-    int                 histint;
-    for (int i = 0; i < Np; ++i) {
-        dr = sqrt(x[i][0] * x[i][0] + x[i][1] * x[i][1]);
-        v_t = (x[i][0] * v[i][1] - x[i][1] * v[i][0]) / (dr * dr);
-        if (dr < R) {
-            histint = (int) dr;
-            hist[histint] += v_t * bunbo * dr;
-            hist2[histint] += v_t * bunbo;
-            lohist[histint] += bunbo;
-        }
-    }
-}
 
 void output(int k, double (*v)[dim], double (*x)[dim], int l) {
     char     filename[128];
@@ -376,7 +358,7 @@ void output(int k, double (*v)[dim], double (*x)[dim], int l) {
     file.close();
 }
 
-void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
+void output_ani(int k, double (*v)[dim], double (*x)[dim], int l,double *theta) {
     char     filename[128];
     ofstream file;
     snprintf(filename, 128,
@@ -386,7 +368,7 @@ void output_ani(int k, double (*v)[dim], double (*x)[dim], int l) {
     file.open(filename /* std::ios::app*/); // append
     for (int i = 0; i < Np; ++i) {
         file << k * dt << "\t" << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0]
-             << "\t" << v[i][1] << endl;
+             << "\t" << v[i][1] << "¥t"<<theta[i]<<endl;
     }
     file.close();
 }
@@ -686,7 +668,7 @@ int main() {
 
     while (j < 1e7) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        // auto_list_update(&disp_max, x, x_update, list);
         eom_abp9(v, x, f, a, list, theta, j);
     }
     j = 0;
@@ -702,7 +684,7 @@ int main() {
     int tmaxbefch = R / (dt * 5);
     while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        // auto_list_update(&disp_max, x, x_update, list);
         eom_abp8(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < Np; ch++) {
@@ -718,7 +700,7 @@ int main() {
     tmaxbefch = tmaxlg / dt;
     while (j < tmaxbefch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        // auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
     }
     for (int ch = 0; ch < Np; ch++) {
@@ -754,11 +736,10 @@ int main() {
     ++k;
     while (j < tanimaxch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        // auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
-        // make_v_thetahist(x, v, hist, hist2, lohist);
         if (j >= kanit) {
-            output_ani(j, v, x, kani);
+            output_ani(j, v, x, kani,theta);
             ++kani;
             kanit += tanibitch;
             if (j >= toutcoord) {
@@ -776,7 +757,7 @@ int main() {
     }
     while (j < tmaxch) {
         ++j;
-        auto_list_update(&disp_max, x, x_update, list);
+        // auto_list_update(&disp_max, x, x_update, list);
         eom_abp1(v, x, f, a, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
 

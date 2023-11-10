@@ -255,7 +255,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim2], double (*f)[dim],
     for (int i = 0; i < Np; i++) {
         calc_force_wall(x[i], f[i]);
         for (int j = 0; j < dim; j++) {
-            v[i][j] += (-v[i][j] + f[i][j]) * ddt + fluc * gaussian_rand();
+            v[i][j] += (-v[i][j] + f[i][j]) * ddt ;
             x[i][j] += v[i][j] * ddt;
             x[i][j] -= perio(x[i][j]);
         }
@@ -331,7 +331,7 @@ void output_ini(double (*v)[dim], double (*x)[dim2], double *a) {
              "./%s_coorR%.1flo%.2fMs%.3ftau%.3fv0%.1f/"
              "tyouwaenn_lo%.3f_tau%.3f_m%.3f_t0.dat",
              folder_name, R, lo, mass, tau, v0, lo, tau, mgn);
-    file.open(filename, std::ios::app); // append
+    file.open(filename); // append
     for (int i = 0; i < Np; ++i) {
         file << x[i][0] << "\t" << x[i][1] << "\t" << v[i][0] << "\t" << v[i][1]
              << endl;
@@ -525,16 +525,11 @@ int set_x1_th1(double (*x)[dim2], double *theta_i, double(*x0),
 }
 inline double diff_theta(double theta_0, double theta_t) {
     double dif = theta_t - theta_0;
-    if (dif > M_PI)
-        return dif - M_PI2;
-    else if (dif < -M_PI)
-        return dif + M_PI2;
-    else
-        return dif;
+    return (int)(dif*M_1_PI)*M_PI2;
 }
 void calc_t_dep(double (*x)[dim2], double (*v)[dim], long long j,
                 double *theta_i) {
-    static constexpr double R_dist1 = R + cut, R_dist12 = R_dist1 * R_dist1,
+    static constexpr double R_dist1 = R + 1, R_dist12 = R_dist1 * R_dist1,
                             R_dist22 = (R + 2) * (R + 2),
                             norm = 1. / (M_PI * (R_dist12 - R * R));
     double omega_t = 0., del_thetax_t = 0., del_theta_t = 0., del_vs = 0., r2,
@@ -761,10 +756,10 @@ int main() {
 
     std::cout << "passed kasanari!" << endl;
     int tmaxbefch = 10 / (dtlg);
-    for (int j = 0; j < tmaxbefch; ++j) {
-        auto_list_update(x, x_update, list);
-        eom_langevin_t(v, x, f, a, list, 5.);
-    }
+    // for (int j = 0; j < tmaxbefch; ++j) {
+    //     auto_list_update(x, x_update, list);
+    //     eom_langevin_t(v, x, f, a, list, 5.);
+    // }
 
     for (int j = 0; j < 1e7; ++j) {
         auto_list_update(x, x_update, list);

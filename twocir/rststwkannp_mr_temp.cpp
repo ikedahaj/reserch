@@ -86,6 +86,7 @@ static constexpr double Npd =
      (M_PI - usr_arccos(rbit_2) + rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
     2.;
 static constexpr int Np = Npd;
+static constexpr int Np_act=Np;
 // static constexpr double R=usr_sqrt(Np/((lo * 2. * M_2_PI  *
 //					(M_PI - usr_arccos(rbit_2) + rbit_2 *
 ////usr_sqrt(1 - rbit_2 * rbit_2))) *
