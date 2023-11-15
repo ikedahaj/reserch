@@ -14,25 +14,31 @@
 
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define Nn          50
-#define tmax        8000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
-#define tmaxlg      8000 // 緩和時間は10たうとする;
+#define tmax        20000 // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmaxlg      10000 // 緩和時間は10たうとする;
 #define tmaxani     2000  //>tmaxの時プログラムを変更すること;
 #define tbitani     5
 #define dim         2           // 変えるときはEomを変えること;
-#define cut         1.122462048 // 3.
 #define skin        1.5
 #define dtlg        1e-5
 #define dt          1e-4
-#define folder_name "stwmssnp8" // 40文字程度で大きすぎ;
+#define folder_name "stwmssnpn0" // 40文字程度で大きすぎ;
 #define UPDATE_MAX(x,x_past) (x_past=(x>x_past)?x:x_past)
-#define msdBit      5
-#define msdini      0.01
+#define msdBit      3
+#define msdtill 2
+#define msdini      0.001
 #define temp 5.0 //langevinで用いる温度;
 #define ratf        1.0
 #define ratf_w      1.
 #define w_list      cell_list // ver_list or cell_list
+#define w_force calc_force_harmonic//calc_force:WCA;
 // #define polydispersity 0.3 // コードも変える;
-#define para3_tbit 0.01 // double;
+#if w_force==calc_force_harmonic
+#define cut 1.
+#else
+#define cut         1.122462048 // 3.
+#endif
+#define para3_tbit 0.1 // double;
 #define FLAG_MASS  1  // 1なら慣性あり0なら慣性なし;
 using std::endl;
 using std::max;
@@ -44,7 +50,7 @@ using std::ofstream;
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 #ifndef TAU
-#define TAU 50
+#define TAU 100
 #endif
 #ifndef MS
 #if FLAG_MASS == 1
@@ -104,6 +110,7 @@ static constexpr int    tcoorch = (tau > 10) ? tau / dt : 10 / dt;
 static constexpr double const_f = -48. * ratf;
 static constexpr double const_f_w = -48. * ratf_w;
 static constexpr double msdbit = msdBit / dt;
+static constexpr double msdtillch=msdtill/dt;
 // χとかの出す時間について::１万アンサンブルぐらい取るようにパラメータを設定;
 // 理想の出す数;１で固定するようにした;
 static constexpr int para3_bitn = 1;
@@ -221,13 +228,34 @@ void calc_force(double (*x)[dim], double (*f)[dim], int (*list)[Nn]) {
             }
         }
 }
+void calc_force_harmonic(double (*x)[dim], double (*f)[dim], int (*list)[Nn]) {
+    double dx, dy, dr2,dr, dUr /*,  aij /*w12*/;
+    constexpr double c_f=2.*ratf;
+    ini_array(f);
+    for (int i = 0; i < Np; ++i)
+        for (int j = 1; j <= list[i][0]; ++j) {
+            dx = x[i][0] - x[list[i][j]][0];
+            dy = x[i][1] - x[list[i][j]][1];
+            dr2 = dx * dx + dy * dy;
+            // aij = (a[i] + a[list[i][j]]) * (a[i] + a[list[i][j]]);
 
+            if (dr2 < cut2) {
+                dr=sqrt(dr2);
+                // w12 = w6 * w6;
+                dUr = c_f * (dr-cut) /dr;
+                f[i][0] -= dUr * dx;
+                f[list[i][j]][0] += dUr * dx;
+                f[i][1] -= dUr * dy;
+                f[list[i][j]][1] += dUr * dy;
+            }
+        }
+}
 void eom_abp9(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
     static constexpr double ddt = 1e-7;
     static constexpr double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
     double                  ri, riw, w2, w6, dUr;
-    calc_force(x, f, list);
+    w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
 
         // /*force bitween wall;
@@ -288,7 +316,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     double zeta = 1.0, ddt = 1e-9, const_fst = -4800.;
     double fluc = sqrt(2. * zeta * 5. * ddt);
     double ri, riw, w2, w6, dUr;
-    calc_force(x, f, list);
+    w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
 
         // /*force bitween wall;
@@ -339,9 +367,9 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
                     int (*list)[Nn],double temp0) {
 
     double        zeta = 1;
-    double fluc = sqrt(2. * zeta *temp0 * dtlg);
+    static double fluc = sqrt(2. * zeta *temp0 * dtlg);
     double        ri, riw, w2, w6, dUr;
-    calc_force(x, f, list);
+    w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
 
         // /*force bitween wall;
@@ -393,7 +421,7 @@ void eom_8(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     // double                  sico[2];
     static constexpr double D = usr_sqrt(2. * dtlg / tau), M_inv = dtlg / mass;
     double                  ri, riw, w2, w6, dUr;
-    calc_force(x, f, list);
+    w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
 
         // /*force bitween wall;
@@ -451,7 +479,7 @@ void eom_abp1(double (*v)[dim], double (*x)[dim], double (*f)[dim],
               int (*list)[Nn], double *theta_i) {
     double                  ri, riw, w2, w6, dUr;
     static constexpr double D = usr_sqrt(2. * dt / tau), M_inv = dt / mass;
-    calc_force(x, f, list);
+    w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         // /*force bitween wall;
         if (x[i][0] > 0.) {
@@ -757,7 +785,7 @@ int main() {
     }
     std::cout << "passed kasanari!" << endl;
     output_ini(v, x);
-    unsigned long long int tmaxbefch = 2 * R / (dtlg);
+    unsigned long long int tmaxbefch = 20 * R / (dtlg);
     for (int j = 0; j < tmaxbefch; j++) {
         auto_list_update(x, x_update, list);
         eom_langevin_h(v, x, f, list,temp);
@@ -833,8 +861,8 @@ int main() {
                 } //*/
         if (j >= tout) {
             calc_corr(x, x0, v1, v, j);
-
-            tout += msdbit;
+	    if(j<=msdtillch)tout*=1.1;
+            else tout += msdbit;
         }
     }
     std::cout << "ani_end" << endl;
@@ -887,7 +915,7 @@ int main() {
 	ifs.open(file_fais);
 	double params_4[4],ti,ommax=-5;
 	int c_fai=0;
-	while(!ifs.eof()){
+	for(int i=0,im=tmax/para3_tbit;i<im;i++){
         ifs>>ti>>params_4[0]>>params_4[1]>>params_4[2]>>params_4[3];
 		UPDATE_MAX(abs(params_4[0]),faimax);
 		if(params_4[0]>0.3)c_fai++;
