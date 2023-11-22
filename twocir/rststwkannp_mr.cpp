@@ -159,7 +159,7 @@ inline double dist2left(double *x) {
 }
 
 bool ini_coord_twocircles(double (*x)[dim]) {
-    double R2 = R - (0.5), rbbit = Rbit * 0.5,
+    double R2 = R - (0.3), rbbit = Rbit * 0.5,
            bit = sqrt((R2 * R2 *
                        (M_PI - usr_arccos(rbbit) +
                         rbbit * usr_sqrt(1 - rbbit * rbbit))) /
@@ -252,7 +252,47 @@ void calc_force_harmonic(double (*x)[dim], double (*f)[dim], int (*list)[Nn]) {
 }
 inline void calc_force_wall(double *x, double *f) {
     double           ri, riw, w2, w6, dUr = 0.;
-    constexpr double cut_w = 1.122462048 , const_f_w = -48. * ratf_w;
+    constexpr double cut_w = 1.122462048, const_f_w = -48. * ratf_w;
+    if (x[0] > 0.) {
+        ri = sqrt(dist2right(x));
+        riw = R + 0.5 - ri;
+        // aij = 0.5 + a[i];
+        if (riw < cut_w) {
+            w2 = 1. / (riw * riw);
+            w6 = w2 * w2 * w2;
+            // w12=w6*w6;
+            dUr = const_f_w * (w6 - 0.5) * w6 / (riw * ri);
+            f[0] += dUr * (x[0] - center_rignt);
+            f[1] += dUr * x[1];
+        }
+    } else if (x[0] < 0.) {
+        ri = sqrt(dist2left(x));
+        riw = R + 0.5 - ri;
+        // aij = 0.5 + a[i];
+        if (riw < cut_w) {
+            w2 = 1. / (riw * riw);
+            w6 = w2 * w2 * w2;
+            // w12=w6*w6;
+            dUr = const_f_w * (w6 - 0.5) * w6 / (riw * ri);
+            f[0] += dUr * (x[0] - center_left);
+            f[1] += dUr * x[1];
+        }
+    } else if (x[0] == 0.) {
+        ri = abs(x[1]);
+        riw = x0limit + 0.5 - ri;
+        // aij = 0.5 + a[i];
+        if (riw < cut_w) {
+            w2 = 1. / (riw * riw);
+            w6 = w2 * w2 * w2;
+            // w12=w6*w6;
+            dUr = const_f_w * (w6 - 0.5) * w6 / (riw * ri);
+            f[1] += dUr * x[1];
+        }
+    }
+}
+inline void calc_force_wall_fst(double *x, double *f) {
+    double           ri, riw, w2, w6, dUr = 0.;
+    constexpr double cut_w = 1.122462048, const_f_w = -48. * 100;
     if (x[0] > 0.) {
         ri = sqrt(dist2right(x));
         riw = R + 0.5 - ri;
@@ -351,7 +391,7 @@ void eom_langevin(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         // /*force bitween wall;
-        w_wall(x[i], f[i]);
+        calc_force_wall_fst(x[i], f[i]);
         for (int j = 0; j < dim; j++) {
             v[i][j] +=
                 -zeta * v[i][j] * ddt + f[i][j] * ddt + fluc * gaussian_rand();
@@ -367,7 +407,10 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         // /*force bitween wall;
-        w_wall(x[i], f[i]);
+        if (temp0 == temp)
+            calc_force_wall_fst(x[i], f[i]);
+        else
+            w_wall(x[i], f[i]);
         for (int j = 0; j < dim; j++) {
             v[i][j] +=
                 -v[i][j] * dtlg + f[i][j] * dtlg + fluc * gaussian_rand();
@@ -509,7 +552,8 @@ bool out_setup() {  // filenameが１２８文字を超えていたらfalseを�
          << Np / ((2. * M_2_PI * R * R *
                    (M_PI - usr_arccos(rbit_2) +
                     rbit_2 * usr_sqrt(1 - rbit_2 * rbit_2))) *
-                  2.)<<endl;
+                  2.)
+         << endl;
     file << "eta=1,t=1" << endl;
     file << "temp" << temp << endl;
     file.close();
@@ -686,6 +730,7 @@ int main() {
     }
 
     tmaxbefch = tmaxlg / dt;
+    if (tau * 10 > tmaxlg) tmaxbefch = tau * 10 / dt;
     for (int j = 0; j < tmaxbefch; ++j) {
         auto_list_update(x, x_update, list);
         eom_abp1(v, x, f, list, theta);
