@@ -50,7 +50,7 @@ using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-#define lo   0.7  // コンパイル時に代入する定数;
+#define lo   0.845  // コンパイル時に代入する定数;
 #define Rbit 0.   // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
@@ -157,7 +157,37 @@ inline double dist2left(double *x) {
     double xb = x[0] - center_left;
     return xb * xb + x[1] * x[1];
 }
-
+bool ini_coord_single_circles(double (*x)[dim]) {
+    double dr;
+    int    cnt_Np = 0, cnt_max = 1;
+    while (cnt_Np < Np - 1) {
+        cnt_Np += (int) (M_PI2 / acos(1 - 2. / (3 * cnt_max * cnt_max)));
+        cnt_max++;
+    }
+    dr = 2 * (R-0.3) / (sqrt(3) * cnt_max);
+    double d_theta;
+    cnt_Np = 1;
+    x[0][0] = 0;
+    x[0][1] = 0;
+    for (int i = 1; i <= cnt_max; i++) {
+        d_theta = acos(1 - 2. / (3 * i * i));
+        for (double theta = d_theta * (i % 2) * 0.5;
+             theta < M_PI2 ; theta += d_theta) {
+            x[cnt_Np][0] = dr * i * cos(theta);
+            x[cnt_Np][1] = dr * i * sin(theta);
+            cnt_Np++;
+            if (cnt_Np == Np) break;
+        }
+        if (cnt_Np == Np) break;
+    }
+    if (cnt_Np == Np) {
+        std::cout << Np << endl;
+        return true;
+    } else {
+        std::cout << Np << "\t" << cnt_Np << endl;
+        return false;
+    }
+}
 bool ini_coord_twocircles(double (*x)[dim]) {
     double R2 = R - (0.3), rbbit = Rbit * 0.5,
            bit = sqrt((R2 * R2 *
@@ -407,10 +437,10 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         // /*force bitween wall;
-        if (temp0 == temp)
-            calc_force_wall_fst(x[i], f[i]);
-        else
-            w_wall(x[i], f[i]);
+        // if (temp0 == temp)
+        //     calc_force_wall_fst(x[i], f[i]);
+        // else
+        w_wall(x[i], f[i]);
         for (int j = 0; j < dim; j++) {
             v[i][j] +=
                 -v[i][j] * dtlg + f[i][j] * dtlg + fluc * gaussian_rand();
