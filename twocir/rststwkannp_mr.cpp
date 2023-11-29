@@ -11,10 +11,9 @@
 #include <vector>
 
 #include "BM.h"
-
 // #define Np          12800 // 4の倍数であること;NP=4*r^2*lo
 #define Nn                    50
-#define tmax                  20000  // 973.686//2*100たうとする;<tmaxaniの時気をつける;
+#define tmax                  100000  // 973.686//2*100たうとする;<tmaxaniの時気をつける;
 #define tmaxlg                5000  // 緩和時間は10たうとする;
 #define tmaxani               900  //>tmaxの時プログラムを変更すること;
 #define tbitani               3
@@ -22,16 +21,16 @@
 #define skin                  1.5
 #define dtlg                  1e-5
 #define dt                    1e-4
-#define folder_name           "stwmssnpn1"  // 40文字程度で大きすぎ;
+#define folder_name           "stwmssnpn0"  //"h0" // 40文字程度で大きすぎ;
 #define UPDATE_MAX(x, x_past) (x_past = (x > x_past) ? x : x_past)
 #define msdBit                3
 #define msdtill               2
-#define msdini                0.001
-#define temp                  5.0  // langevinで用いる温度;
+#define msdini                0.01
+#define temp                  5.0  // langevinで用いÏる温度;
 #define ratf                  1.0
 #define ratf_w                1.
 #define w_list                cell_list  // ver_list or cell_list
-#define FLAG_W_FORCE          1          // 0の時harmonic,1の時WCA;
+#define FLAG_W_FORCE          0          // 0の時harmonic,1の時WCA;
 
 // #define polydispersity 0.3 // コードも変える;
 #if FLAG_W_FORCE == 0
@@ -43,19 +42,21 @@
 #define w_force calc_force
 #define w_wall  calc_force_wall
 #endif
-#define para3_tbit 0.1  // double;
-#define FLAG_MASS  1    // 1なら慣性あり0なら慣性なし;
+
+#define FLAG_MASS 1  // 1なら慣性あり0なら慣性なし;
 using std::endl;
 using std::max;
 using std::min;
 using std::ofstream;
 // #define radios 1.
-#define lo   0.845  // コンパイル時に代入する定数;
-#define Rbit 0.   // delta/R,Rにすると穴がなくなる;//
+#ifndef lo
+#define lo 0.7  // コンパイル時に代入する定数;
+#endif
+#define Rbit 0.  // delta/R,Rにすると穴がなくなる;//
 // コンパイル時に-D{変数名}={値}　例:-Dbit=80　とすること;
 #define v0 1.
 #ifndef TAU
-#define TAU 100
+#define TAU 1
 #endif
 #ifndef MS
 #if FLAG_MASS == 1
@@ -65,7 +66,7 @@ using std::ofstream;
 #endif
 #endif
 #ifndef Rs
-#define Rs 10
+#define Rs 20
 #endif
 static constexpr double tau = TAU;
 static constexpr double mass = MS;
@@ -91,7 +92,7 @@ constexpr double usr_sqrt(double x) {
     }
     return b;
 }
-
+static constexpr double para3_tbit = 1;  // double;
 static constexpr double rbit_2 = Rbit * 0.5;
 static constexpr double Npd =
     (lo * 2. * M_2_PI * R * R *
@@ -126,6 +127,7 @@ static constexpr double para3_bitlonch =
 char foldername1[128];
 char foldername_ani[128];
 char foldername_coor[128];
+#include "ana_ft.h"
 #include "analyzepart_single_circle.h"
 void usr_sincos(double kaku, double *x) {  // x[0]がcos,x[1]issin;
                                            // 制度は10^-13程度;
@@ -157,37 +159,7 @@ inline double dist2left(double *x) {
     double xb = x[0] - center_left;
     return xb * xb + x[1] * x[1];
 }
-bool ini_coord_single_circles(double (*x)[dim]) {
-    double dr;
-    int    cnt_Np = 0, cnt_max = 1;
-    while (cnt_Np < Np - 1) {
-        cnt_Np += (int) (M_PI2 / acos(1 - 2. / (3 * cnt_max * cnt_max)));
-        cnt_max++;
-    }
-    dr = 2 * (R-0.3) / (sqrt(3) * cnt_max);
-    double d_theta;
-    cnt_Np = 1;
-    x[0][0] = 0;
-    x[0][1] = 0;
-    for (int i = 1; i <= cnt_max; i++) {
-        d_theta = acos(1 - 2. / (3 * i * i));
-        for (double theta = d_theta * (i % 2) * 0.5;
-             theta < M_PI2 ; theta += d_theta) {
-            x[cnt_Np][0] = dr * i * cos(theta);
-            x[cnt_Np][1] = dr * i * sin(theta);
-            cnt_Np++;
-            if (cnt_Np == Np) break;
-        }
-        if (cnt_Np == Np) break;
-    }
-    if (cnt_Np == Np) {
-        std::cout << Np << endl;
-        return true;
-    } else {
-        std::cout << Np << "\t" << cnt_Np << endl;
-        return false;
-    }
-}
+
 bool ini_coord_twocircles(double (*x)[dim]) {
     double R2 = R - (0.3), rbbit = Rbit * 0.5,
            bit = sqrt((R2 * R2 *
@@ -437,10 +409,10 @@ void eom_langevin_h(double (*v)[dim], double (*x)[dim], double (*f)[dim],
     w_force(x, f, list);
     for (int i = 0; i < Np; i++) {
         // /*force bitween wall;
-        // if (temp0 == temp)
-        //     calc_force_wall_fst(x[i], f[i]);
-        // else
-        w_wall(x[i], f[i]);
+        if (temp0 == temp)
+            calc_force_wall_fst(x[i], f[i]);
+        else
+            w_wall(x[i], f[i]);
         for (int j = 0; j < dim; j++) {
             v[i][j] +=
                 -v[i][j] * dtlg + f[i][j] * dtlg + fluc * gaussian_rand();
@@ -707,12 +679,12 @@ int main() {
     ini_array(x_update);
     ini_array(f);
     ini_hist(theta, Np);
-    snprintf(foldername1, 128, "%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f",
+    snprintf(foldername1, 128, "%slo%.3fMs%.3ftau%.3fbit%.3fv0%.1f",
              folder_name, lo, mass, tau, Rbit, v0);
     const char *fname = foldername1;
     mkdir(fname, 0777);
     snprintf(foldername_ani, 128,
-             "%sR%.1f_animelo%.2fMs%.3ftau%.3fbit%.3fv0%.1f", folder_name, R,
+             "%sR%.1f_animelo%.3fMs%.3ftau%.3fbit%.3fv0%.1f", folder_name, R,
              lo, mass, tau, Rbit, v0);
     const char *fname3 = foldername_ani;
     mkdir(fname3, 0777);
@@ -772,8 +744,13 @@ int main() {
         }
     }
     std::cout << "passed owari!" << endl;
-    constexpr int tanibitch = tbitani / dt, para3_tbitch = para3_tbit / dt;
-    unsigned long long int tmaxch = tmax / dt, tanimaxch = tmaxani / dt;
+    constexpr double tmaxch = (tau / 10 < para3_tbit)
+                                  ? (tmax * (tau / (para3_tbit * 10)) / dt)
+                                  : (tmax / dt),
+                     tanimaxch = tmaxani / dt;
+    constexpr int tanibitch = tbitani / dt,
+                  para3_tbitch = (tau / 10 < para3_tbit) ? (tau / 10 / dt)
+                                                         : (para3_tbit / dt);
 
     tout = msdini / dt;
     unsigned long long int toutcoord = tcoorch;
@@ -792,12 +769,10 @@ int main() {
         eom_abp1(v, x, f, list, theta);
         // make_v_thetahist(x, v, hist, hist2, lohist);
         // eom_langevin_h(v, x, f, list);
-        if (j >= para3_bitlonco) {
+        if (j >= para3_tbitco) {
             calc_fai(x, v, theta, j);
-            para3_bitlonco += para3_bitlonch;
-            if (j >= para3_tbitco) {
-                para3_tbitco += para3_tbitch;
-            }
+
+            para3_tbitco += para3_tbitch;
         }
 
         if (j >= kanit) {
@@ -824,12 +799,11 @@ int main() {
         auto_list_update(x, x_update, list);
         eom_abp1(v, x, f, list, theta);
         // eom_langevin_h(v, x, f, list);
-        if (j >= para3_bitlonco) {
+        if (j >= para3_tbitco) {
             calc_fai(x, v, theta, j);
-            para3_bitlonco += para3_bitlonch;
-            if (j >= para3_tbitco) {
-                para3_tbitco += para3_tbitch;
-            }
+
+            para3_tbitco += para3_tbitch;
+
             /*
             if (j >= toutcoord) {
                 output(v, x);
@@ -853,7 +827,7 @@ int main() {
     char     filename[128];
     ofstream file2;
     snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
+             "./%slo%.3fMs%.3ftau%.3fbit%.3fv0%.1f/kekkalo%.3fm%.3f.dat",
              folder_name, lo, mass, tau, Rbit, v0, lo, mgn);
     file2.open(filename, std::ios::app);  // append
     file2 << R << " " << counthazure << " " << ave << " " << maxnum << " "
@@ -862,28 +836,7 @@ int main() {
                  .count()
           << endl;  // 処理に要した時間をミリ秒に変換
     file2.close();
-    std::ifstream ifs;
-    ifs.open(file_fais);
-    double params_4[4], ti, ommax = -5;
-    int    c_fai = 0;
-    for (int i = 0, im = tmax / para3_tbit; i < im; i++) {
-        ifs >> ti >> params_4[0] >> params_4[1] >> params_4[2] >> params_4[3];
-        UPDATE_MAX(abs(params_4[0]), faimax);
-        if (params_4[0] > 0.3) c_fai++;
-        UPDATE_MAX(abs(params_4[1]), pibarmax);
-        UPDATE_MAX(abs(params_4[2]), lzmax);
-        UPDATE_MAX(abs(params_4[3]), ommax);
-    }
-    ifs.close();
-
-    snprintf(filename, 128,
-             "./%slo%.2fMs%.3ftau%.3fbit%.3fv0%.1f/faiminmam%.3f.dat",
-             folder_name, lo, mass, tau, Rbit, v0, mgn);
-    file2.open(filename, std::ios::app);
-    file2 << R << " " << faimax << " " << c_fai << " " << pibarmax << " "
-          << lzmax << " " << ommax << endl;
-    file2.close();
-
+    do_fts(foldername1);
     std::cout << "done" << endl;
     return 0;
 }
