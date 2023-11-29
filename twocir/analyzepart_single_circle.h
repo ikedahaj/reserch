@@ -1,3 +1,5 @@
+#ifndef ANALYZEPART_SINGLE_PARTICLE
+#define ANALYZEPART_SINGLE_PARTICLE
 char file_xcor[128], file_vcor[128], file_msd[128], file_lzcor[128];
 // 要求する変数はNp,R,mgn,foldername1;
 
@@ -170,3 +172,4 @@ void calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
     file.close();
 #endif
 }
+#endif
