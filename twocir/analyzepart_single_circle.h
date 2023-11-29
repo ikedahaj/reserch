@@ -127,7 +127,7 @@ void calc_fai(double (*x)[dim], double (*v)[dim], double *theta_i,
             del_theta_td += atan_i - theta_past[i] -
                             M_PI2 * (int) ((atan_i - theta_past[i]) * M_1_PI);
             theta_past[i] = atan_i;
-            haikou += M_PI2 * (int) ((theta_i[i] - atan_i) * M_1_PI);
+            haikou +=theta_i[i] - atan_i- M_PI2 * (int) ((theta_i[i] - atan_i) * M_1_PI);
             sum_om += vt;
         } else if (r2 > R_2cor2) {
             theta_past[i] = atan2(x[i][1], x[i][0]);
