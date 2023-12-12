@@ -3,7 +3,7 @@
 #define GAY_BANE_PERIO
 
 #define gay_kappa_p 5.
-#define gay_M       2 // intでなくなるときはこーどを変更すること;
+#define gay_M       2  // intでなくなるときはこーどを変更すること;
 #define gay_N       1
 #ifndef gay_kappa
 #define gay_kappa 2
@@ -39,21 +39,18 @@ constexpr double fast_power_cone(double base, int power) {
 // xのt乗根を返す;
 constexpr double nth_root(double x, int t) {
     double x0 = x, ans = (x > 1) ? x : 1;
-    if (t <= 0 || x < 0)
-        return 1;
+    if (t <= 0 || x < 0) return 1;
     for (int i = 0; i < 1000; i++) {
         x0 = ans;
         ans = x0 -
               (fast_power_cone(x0, t) - x) / (t * fast_power_cone(x0, t - 1));
-        if (ans > x0)
-            break;
+        if (ans > x0) break;
     }
     return ans;
 }
 void ini_array(double (*x)[dim]) {
     for (int i = 0; i < Np; ++i)
-        for (int j = 0; j < dim; ++j)
-            x[i][j] = 0.0;
+        for (int j = 0; j < dim; ++j) x[i][j] = 0.0;
 }
 void ini_force(double (*f)[dim], double *f_theta) {
     for (int i = 0; i < Np; i++) {
@@ -81,7 +78,7 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                                  (gay_kappa * gay_kappa + 1.),
                      gay_alpha_p = (nth_root(gay_kappa_p, gay_M) - 1) /
                                    (nth_root(gay_kappa_p, gay_M) + 1),
-                     cutf2 = (cut+gay_kappa-1) * (cut+gay_kappa-1),
+                     cutf2 = (cut + gay_kappa - 1) * (cut + gay_kappa - 1),
                      gay_alpha2 = gay_alpha * gay_alpha,
                      gay_alpha_p2 = gay_alpha_p * gay_alpha_p;
     // kがi,lがj;
@@ -127,26 +124,28 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                     UWCA = 4. * xi6 * (xi6 - 1.);
                     dUWCA = 48. * xi6 * (0.5 - xi6) / xi;
                     sigma_hat3 = sigma_hat * sigma_hat * sigma_hat;
-                    dx_xi =
-                        dx * dr_1 +
-                        sigma_hat3 * gay_alpha * dr2_1 *
-                            (dx * dr2_1 * f_alpha -
-                             gay_alpha *
-                                 ((dx * (cosk * cosk + cosj * cosj) +
-                                   dy * (cosk * sink + cosj * sinj)) -
-                                  2.*(dx * cosk * cosj + dy * sin_kl_plus * 0.5) *
-                                      cos_kl_minus * gay_alpha) *
-                                 f_bun_alpha);
-                    dy_xi =
-                        dy * dr_1 +
-                        sigma_hat3 * gay_alpha * dr2_1 *
-                            (dy * dr2_1 * f_alpha -
-                             gay_alpha *
-                                 ((dy * (cosk * sink + cosj * sinj) +
-                                   dx * (cosk * sink + cosj * sinj)) -
-                                  2.*(dy * sink * sinj + dx * sin_kl_plus * 0.5) *
-                                      cos_kl_minus * gay_alpha) *
-                                 f_bun_alpha);
+                    dx_xi = dx * dr_1 +
+                            sigma_hat3 * gay_alpha * dr2_1 *
+                                (dx * dr2_1 * f_alpha -
+                                 gay_alpha *
+                                     ((dx * (cosk * cosk + cosj * cosj) +
+                                       dy * (cosk * sink + cosj * sinj)) -
+                                      2. *
+                                          (dx * cosk * cosj +
+                                           dy * sin_kl_plus * 0.5) *
+                                          cos_kl_minus * gay_alpha) *
+                                     f_bun_alpha);
+                    dy_xi = dy * dr_1 +
+                            sigma_hat3 * gay_alpha * dr2_1 *
+                                (dy * dr2_1 * f_alpha -
+                                 gay_alpha *
+                                     ((dy * (cosk * sink + cosj * sinj) +
+                                       dx * (cosk * sink + cosj * sinj)) -
+                                      2. *
+                                          (dy * sink * sinj +
+                                           dx * sin_kl_plus * 0.5) *
+                                          cos_kl_minus * gay_alpha) *
+                                     f_bun_alpha);
                     dk_dr_dot_ek = -dx * sink + dy * cosk;
                     dl_dr_dot_el = -dx * sinj + dy * cosj;
                     sin_kl_minus = sink * cosj - cosk * sinj;
@@ -192,14 +191,14 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                                   (dr2_1 * dx * f_syou_alpha_p -
                                    (dx * (cosk * cosk + cosj * cosj) +
                                     dy * (cosk * sink + cosj * sinj) -
-                                    2.*(dx * cosk * cosj + dy * sin_kl_plus) *
+                                    2. * (dx * cosk * cosj + dy * sin_kl_plus) *
                                         gay_alpha_p * cos_kl_minus)) *
                                   f_bun_alpha_p;
                     dy_epsilon2 = 2. * dr2_1 * gay_alpha_p *
                                   (dr2_1 * dy * f_syou_alpha_p -
                                    (dy * (cosk * sink + cosj * sinj) +
                                     dx * (cosk * sink + cosj * sinj) -
-                                    2.*(dy * sink * sinj + dx * sin_kl_plus) *
+                                    2. * (dy * sink * sinj + dx * sin_kl_plus) *
                                         gay_alpha_p * cos_kl_minus)) *
                                   f_bun_alpha_p;
                     d_theta_epsilon2_k =
@@ -282,8 +281,8 @@ inline int peri_cell_y(int m) {
 void cell_list(int (*list)[Nn], double (*x)[dim2]) {
     int              map_index, nx[Np][dim];
     constexpr int    m2 = Mx * My;
-    constexpr double thresh2 =
-                         (cut +gay_kappa-1 + skin*gay_kappa) * (cut + gay_kappa-1 + skin*gay_kappa),
+    constexpr double thresh2 = (cut + gay_kappa - 1 + skin) *
+                               (cut + gay_kappa - 1 + skin),
                      bitx = Mx / Lx, bity = My / Ly;
     double dx, dy;
     // int(*map)[Np + 1] = new int[m2][Np + 1];
@@ -318,7 +317,7 @@ void cell_list(int (*list)[Nn], double (*x)[dim2]) {
 void ver_list(int (*list)[Nn], double (*x)[dim2]) {
     double           dx, dy, dr2;
     constexpr double thresh2 =
-        (cut + gay_kappa-1 + skin*gay_kappa) * (cut + gay_kappa-1 + skin*gay_kappa);
+        (cut + gay_kappa - 1 + skin) * (cut + gay_kappa - 1 + skin);
     for (int i = 0; i < Np; i++) {
         list[i][0] = 0;
     }
@@ -337,8 +336,7 @@ void ver_list(int (*list)[Nn], double (*x)[dim2]) {
 }
 void update(double (*x_update)[dim], double (*x)[dim2]) {
     for (int i = 0; i < Np; i++)
-        for (int j = 0; j < dim; j++)
-            x_update[i][j] = x[i][j];
+        for (int j = 0; j < dim; j++) x_update[i][j] = x[i][j];
 }
 
 void calc_disp_max(double *disp_max, double (*x)[dim2],
@@ -349,8 +347,7 @@ void calc_disp_max(double *disp_max, double (*x)[dim2],
         dx = pri_fce_x(x[i][0] - x_update[i][0]);
         dy = pri_fce_y(x[i][1] - x_update[i][1]);
         disp = dx * dx + dy * dy;
-        if (disp > *disp_max)
-            *disp_max = disp;
+        if (disp > *disp_max) *disp_max = disp;
     }
 }
 
