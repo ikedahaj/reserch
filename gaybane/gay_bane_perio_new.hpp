@@ -86,7 +86,7 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
         cos_kl_minus2, sin_kl_plus, sin_kl_minus, dx_f_bunsi, dy_f_bunsi,
         f_alpha, f_bun_alpha, f_bun_alpha_p, f_syou_alpha_p, dr_dot_ek,
         dr_dot_el, dk_dr_dot_ek, dl_dr_dot_el, sigma_hat, sigma_hat3, dr, xi,
-        xi2, xi6, UWCA, dUWCA, dr_1, dr2_1, dx_xi, dy_xi, d_theta_xi_k,
+        xi_1, xi2, xi6, UWCA, dUWCA, dr_1, dr2_1, dx_xi, dy_xi, d_theta_xi_k,
         d_theta_xi_l, d_theta_epsilon1, epsilon1,
         epsilon1_N_1 /*epsilon1のN-1乗*/, dx_epsilon2, dy_epsilon2,
         d_theta_epsilon2_k, d_theta_epsilon2_l, epsilon2,
@@ -119,61 +119,56 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                 sigma_hat = 1. / sqrt(1. - gay_alpha * 0.5 * dr2_1 * f_alpha);
                 xi = dr - sigma_hat + 1.;
                 if (xi < cut) {
-                    xi2 = 1. / (xi * xi);
+                    xi_1 = 1. / xi;
+                    xi2 = xi_1 * xi_1;
                     xi6 = xi2 * xi2 * xi2;
                     UWCA = 4. * xi6 * (xi6 - 1.);
-                    dUWCA = 48. * xi6 * (0.5 - xi6) / xi;
-                    sigma_hat3 = sigma_hat * sigma_hat * sigma_hat;
-                    dx_xi = dx * dr_1 +
-                            sigma_hat3 * gay_alpha * dr2_1 *
-                                (dx * dr2_1 * f_alpha -
-                                 gay_alpha *
-                                     ((dx * (cosk * cosk + cosj * cosj) +
-                                       dy * (cosk * sink + cosj * sinj)) -
-                                      2. *
-                                          (dx * cosk * cosj +
-                                           dy * sin_kl_plus * 0.5) *
-                                          cos_kl_minus * gay_alpha) *
-                                     f_bun_alpha);
-                    dy_xi = dy * dr_1 +
-                            sigma_hat3 * gay_alpha * dr2_1 *
-                                (dy * dr2_1 * f_alpha -
-                                 gay_alpha *
-                                     ((dy * (cosk * sink + cosj * sinj) +
-                                       dx * (cosk * sink + cosj * sinj)) -
-                                      2. *
-                                          (dy * sink * sinj +
-                                           dx * sin_kl_plus * 0.5) *
-                                          cos_kl_minus * gay_alpha) *
-                                     f_bun_alpha);
+                    dUWCA = 48. * xi6 * (0.5 - xi6) * xi_1;
                     dk_dr_dot_ek = -dx * sink + dy * cosk;
                     dl_dr_dot_el = -dx * sinj + dy * cosj;
                     sin_kl_minus = sink * cosj - cosk * sinj;
+                    sigma_hat3 = sigma_hat * sigma_hat * sigma_hat;
+                    dx_xi =
+                        dx * dr_1 +
+                        sigma_hat3 * gay_alpha * dr2_1 *
+                            (dx * dr2_1 * f_alpha * 0.5 -
+                             gay_alpha *
+                                 ((dx * (cosk * cosk + cosj * cosj) +
+                                   dy * (cosk * sink + cosj * sinj)) -
+                                  (dx * cosk * cosj + dy * sin_kl_plus * 0.5) *
+                                      cos_kl_minus * gay_alpha) *
+                                 f_bun_alpha);
+                    dy_xi =
+                        dy * dr_1 +
+                        sigma_hat3 * gay_alpha * dr2_1 *
+                            (dy * dr2_1 * f_alpha * 0.5 -
+                             gay_alpha *
+                                 ((dy * (sink * sink + sinj * sinj) +
+                                   dx * (cosk * sink + cosj * sinj)) -
+                                  (dy * sink * sinj + dx * sin_kl_plus * 0.5) *
+                                      cos_kl_minus * gay_alpha) *
+                                 f_bun_alpha);
                     d_theta_xi_k =
                         -gay_alpha * sigma_hat3 * dr2_1 *
-                        ((dk_dr_dot_ek + sin_kl_minus * gay_alpha * dr_dot_el) *
-                             dr_dot_ek *
-                             (1. + gay_alpha2 * gay_alpha * cos_kl_minus2 *
-                                       cos_kl_minus) +
-                         gay_alpha * cos_kl_minus *
-                             (gay_alpha * sin_kl_minus *
+                        ((dr_dot_ek - dr_dot_el * gay_alpha * cos_kl_minus) *
+                             dk_dr_dot_ek * (1. - gay_alpha2 * cos_kl_minus2) +
+                         gay_alpha * sin_kl_minus *
+                             ((1 + gay_alpha2 * cos_kl_minus2) * dr_dot_ek *
+                                  dr_dot_el -
+                              gay_alpha * cos_kl_minus *
                                   (dr_dot_ek * dr_dot_ek +
-                                   dr_dot_el * dr_dot_el) -
-                              (1 + gay_alpha * cos_kl_minus) * dr_dot_el *
-                                  dk_dr_dot_ek)) *
+                                   dr_dot_el * dr_dot_el))) *
                         f_bun_alpha * f_bun_alpha;
                     d_theta_xi_l =
                         -gay_alpha * sigma_hat3 * dr2_1 *
-                        ((dl_dr_dot_el - sin_kl_minus * gay_alpha * dr_dot_el) *
-                             dr_dot_ek *
-                             (1. + gay_alpha2 * gay_alpha * cos_kl_minus2 *
-                                       cos_kl_minus) -
-                         gay_alpha * cos_kl_minus *
-                             (gay_alpha * sin_kl_minus *
+                        ((dr_dot_el - dr_dot_ek * gay_alpha * cos_kl_minus) *
+                             dl_dr_dot_el * (1. - gay_alpha2 * cos_kl_minus2) -
+                         gay_alpha * sin_kl_minus *
+                             ((1 + gay_alpha2 * cos_kl_minus2) * dr_dot_ek *
+                                  dr_dot_el -
+                              gay_alpha * cos_kl_minus *
                                   (dr_dot_ek * dr_dot_ek +
-                                   dr_dot_el * dr_dot_el) +
-                              (1 + gay_alpha * cos_kl_minus) * dr_dot_el *
-                                  dl_dr_dot_el)) *
+                                   dr_dot_el * dr_dot_el))) *
                         f_bun_alpha * f_bun_alpha;
                     epsilon1 = 1. / sqrt(1 - gay_alpha2 * cos_kl_minus2);
                     epsilon1_N_1 = fast_power(epsilon1, gay_N - 1);
@@ -183,51 +178,47 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                     f_syou_alpha_p =
                         2. * (dr_dot_ek * dr_dot_ek + dr_dot_el * dr_dot_el -
                               2. * gay_alpha_p * cos_kl_minus *
-                                  (dr_dot_ek * dr_dot_el));
+                                  dr_dot_ek * dr_dot_el);
                     epsilon2 = 1 - gay_alpha_p * dr2_1 * 0.5 * f_syou_alpha_p *
                                        f_bun_alpha_p;
                     epsilon2_M_1 = fast_power(epsilon2, gay_M - 1);
-                    dx_epsilon2 = 2. * dr2_1 * gay_alpha_p *
-                                  (dr2_1 * dx * f_syou_alpha_p -
-                                   (dx * (cosk * cosk + cosj * cosj) +
-                                    dy * (cosk * sink + cosj * sinj) -
-                                    2. * (dx * cosk * cosj + dy * sin_kl_plus) *
-                                        gay_alpha_p * cos_kl_minus)) *
-                                  f_bun_alpha_p;
-                    dy_epsilon2 = 2. * dr2_1 * gay_alpha_p *
-                                  (dr2_1 * dy * f_syou_alpha_p -
-                                   (dy * (cosk * sink + cosj * sinj) +
-                                    dx * (cosk * sink + cosj * sinj) -
-                                    2. * (dy * sink * sinj + dx * sin_kl_plus) *
-                                        gay_alpha_p * cos_kl_minus)) *
-                                  f_bun_alpha_p;
+                    dx_epsilon2 =
+                        2. * dr2_1 * gay_alpha_p *
+                        (dr2_1 * dx * f_syou_alpha_p * 0.5 -
+                         (dx * (cosk * cosk + cosj * cosj) +
+                          dy * (cosk * sink + cosj * sinj) -
+                          (dx * cosk * cosj + 0.5 * dy * sin_kl_plus) *
+                              gay_alpha_p * cos_kl_minus)) *
+                        f_bun_alpha_p;
+                    dy_epsilon2 =
+                        2. * dr2_1 * gay_alpha_p *
+                        (dr2_1 * dy * f_syou_alpha_p * 0.5 -
+                         (dy * (sink * sink + sinj * sinj) +
+                          dx * (cosk * sink + cosj * sinj) -
+                          (dy * sink * sinj + 0.5 * dx * sin_kl_plus) *
+                              gay_alpha_p * cos_kl_minus)) *
+                        f_bun_alpha_p;
                     d_theta_epsilon2_k =
                         -2. * gay_alpha_p * dr2_1 *
-                        ((dk_dr_dot_ek +
-                          sin_kl_minus * gay_alpha_p * dr_dot_el) *
-                             dr_dot_ek *
-                             (1. + gay_alpha_p2 * gay_alpha_p * cos_kl_minus2 *
-                                       cos_kl_minus) +
-                         gay_alpha_p * cos_kl_minus *
-                             (gay_alpha_p * sin_kl_minus *
+                        ((dr_dot_ek - dr_dot_el * gay_alpha_p * cos_kl_minus) *
+                             dk_dr_dot_ek * (1 - gay_alpha_p2 * cos_kl_minus2) +
+                         gay_alpha_p * sin_kl_minus *
+                             ((1 + gay_alpha_p2 * cos_kl_minus2) * dr_dot_ek *
+                                  dr_dot_el -
+                              gay_alpha_p * cos_kl_minus *
                                   (dr_dot_ek * dr_dot_ek +
-                                   dr_dot_el * dr_dot_el) -
-                              (1 + gay_alpha_p * cos_kl_minus) * dr_dot_el *
-                                  dk_dr_dot_ek)) *
+                                   dr_dot_el * dr_dot_el))) *
                         f_bun_alpha_p * f_bun_alpha_p;
                     d_theta_epsilon2_l =
                         -2. * gay_alpha_p * dr2_1 *
-                        ((dl_dr_dot_el -
-                          sin_kl_minus * gay_alpha_p * dr_dot_el) *
-                             dr_dot_ek *
-                             (1. + gay_alpha_p2 * gay_alpha_p * cos_kl_minus2 *
-                                       cos_kl_minus) -
-                         gay_alpha_p * cos_kl_minus *
-                             (gay_alpha_p * sin_kl_minus *
+                        ((dr_dot_el - dr_dot_ek * gay_alpha_p * cos_kl_minus) *
+                             dl_dr_dot_el * (1 - gay_alpha_p2 * cos_kl_minus2) -
+                         gay_alpha_p * sin_kl_minus *
+                             ((1 + gay_alpha_p2 * cos_kl_minus2) * dr_dot_ek *
+                                  dr_dot_el -
+                              gay_alpha_p * cos_kl_minus *
                                   (dr_dot_ek * dr_dot_ek +
-                                   dr_dot_el * dr_dot_el) +
-                              (1 + gay_alpha_p * cos_kl_minus) * dr_dot_el *
-                                  dl_dr_dot_el)) *
+                                   dr_dot_el * dr_dot_el))) *
                         f_bun_alpha_p * f_bun_alpha_p;
                     Fx = (dUWCA * dx_xi * epsilon2 +
                           gay_M * dx_epsilon2 * UWCA) *
@@ -241,6 +232,11 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                     f[list[i][j]][1] += Fy;
                     double fk = (dUWCA * d_theta_xi_k * epsilon1 * epsilon2 +
                                  (gay_M * d_theta_epsilon2_k * epsilon1 +
+                                  gay_N * d_theta_epsilon1 * epsilon2) *
+                                     UWCA) *
+                                epsilon1_N_1 * epsilon2_M_1,
+                           fl = (dUWCA * d_theta_xi_l * epsilon1 * epsilon2 +
+                                 (gay_M * d_theta_epsilon2_l * epsilon1 -
                                   gay_N * d_theta_epsilon1 * epsilon2) *
                                      UWCA) *
                                 epsilon1_N_1 * epsilon2_M_1;
