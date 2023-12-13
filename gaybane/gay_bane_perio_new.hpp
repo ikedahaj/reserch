@@ -128,26 +128,23 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                     dl_dr_dot_el = -dx * sinj + dy * cosj;
                     sin_kl_minus = sink * cosj - cosk * sinj;
                     sigma_hat3 = sigma_hat * sigma_hat * sigma_hat;
-                    dx_xi =
-                        dx * dr_1 +
-                        sigma_hat3 * gay_alpha * dr2_1 *
-                            (dx * dr2_1 * f_alpha * 0.5 -
-                             gay_alpha *
-                                 ((dx * (cosk * cosk + cosj * cosj) +
-                                   dy * (cosk * sink + cosj * sinj)) -
-                                  (dx * cosk * cosj + dy * sin_kl_plus * 0.5) *
+                    dx_xi = dx * dr_1 +
+                            sigma_hat3 * gay_alpha * dr2_1 *
+                                (dx * dr2_1 * f_alpha *0.5 -gay_alpha *
+                                 ( (dx * (cosk * cosk + cosj * cosj) +
+                                        dy * (cosk * sink + cosj * sinj)) -
+                                  (2.*dx * cosk * cosj + dy * sin_kl_plus) *
                                       cos_kl_minus * gay_alpha) *
                                  f_bun_alpha);
-                    dy_xi =
-                        dy * dr_1 +
-                        sigma_hat3 * gay_alpha * dr2_1 *
-                            (dy * dr2_1 * f_alpha * 0.5 -
-                             gay_alpha *
-                                 ((dy * (sink * sink + sinj * sinj) +
-                                   dx * (cosk * sink + cosj * sinj)) -
-                                  (dy * sink * sinj + dx * sin_kl_plus * 0.5) *
-                                      cos_kl_minus * gay_alpha) *
-                                 f_bun_alpha);
+                    dy_xi = dy * dr_1 +
+                            sigma_hat3 * gay_alpha * dr2_1 *
+                                (dy * dr2_1 * f_alpha*0.5 -
+                                 gay_alpha *
+                                     ((dy * (sink * sink + sinj * sinj) +
+                                            dx * (cosk * sink + cosj * sinj)) -
+                                      (2.*dy * sink * sinj + dx * sin_kl_plus) *
+                                          cos_kl_minus * gay_alpha) *
+                                     f_bun_alpha);
                     d_theta_xi_k =
                         -gay_alpha * sigma_hat3 * dr2_1 *
                         ((dr_dot_ek - dr_dot_el * gay_alpha * cos_kl_minus) *
@@ -177,26 +174,26 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                     f_bun_alpha_p = 1. / (1 - gay_alpha_p2 * cos_kl_minus2);
                     f_syou_alpha_p =
                         2. * (dr_dot_ek * dr_dot_ek + dr_dot_el * dr_dot_el -
-                              2. * gay_alpha_p * cos_kl_minus *
-                                  dr_dot_ek * dr_dot_el);
+                              2. * gay_alpha_p * cos_kl_minus * dr_dot_ek *
+                                  dr_dot_el);
                     epsilon2 = 1 - gay_alpha_p * dr2_1 * 0.5 * f_syou_alpha_p *
                                        f_bun_alpha_p;
                     epsilon2_M_1 = fast_power(epsilon2, gay_M - 1);
                     dx_epsilon2 =
-                        2. * dr2_1 * gay_alpha_p *
-                        (dr2_1 * dx * f_syou_alpha_p * 0.5 -
-                         (dx * (cosk * cosk + cosj * cosj) +
-                          dy * (cosk * sink + cosj * sinj) -
-                          (dx * cosk * cosj + 0.5 * dy * sin_kl_plus) *
-                              gay_alpha_p * cos_kl_minus)) *
+                        dr2_1 * gay_alpha_p *
+                        (dr2_1 * dx * f_syou_alpha_p -
+                         2. * (dx * (cosk * cosk + cosj * cosj) +
+                               dy * (cosk * sink + cosj * sinj) -
+                               (dx * cosk * cosj * 2 + dy * sin_kl_plus) *
+                                   gay_alpha_p * cos_kl_minus)) *
                         f_bun_alpha_p;
                     dy_epsilon2 =
-                        2. * dr2_1 * gay_alpha_p *
-                        (dr2_1 * dy * f_syou_alpha_p * 0.5 -
-                         (dy * (sink * sink + sinj * sinj) +
-                          dx * (cosk * sink + cosj * sinj) -
-                          (dy * sink * sinj + 0.5 * dx * sin_kl_plus) *
-                              gay_alpha_p * cos_kl_minus)) *
+                        dr2_1 * gay_alpha_p *
+                        (dr2_1 * dy * f_syou_alpha_p -
+                         2 * (dy * (sink * sink + sinj * sinj) +
+                              dx * (cosk * sink + cosj * sinj) -
+                              (dy * sink * sinj * 2 + dx * sin_kl_plus) *
+                                  gay_alpha_p * cos_kl_minus)) *
                         f_bun_alpha_p;
                     d_theta_epsilon2_k =
                         -2. * gay_alpha_p * dr2_1 *
@@ -239,7 +236,9 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
                                  (gay_M * d_theta_epsilon2_l * epsilon1 -
                                   gay_N * d_theta_epsilon1 * epsilon2) *
                                      UWCA) *
-                                epsilon1_N_1 * epsilon2_M_1;
+                                epsilon1_N_1 * epsilon2_M_1,
+                           fx1 = dUWCA * dx_xi * epsilon2,
+                           fx2 = gay_M * dx_epsilon2 * UWCA;
                     f_theta[i] -= (dUWCA * d_theta_xi_k * epsilon1 * epsilon2 +
                                    (gay_M * d_theta_epsilon2_k * epsilon1 +
                                     gay_N * d_theta_epsilon1 * epsilon2) *
