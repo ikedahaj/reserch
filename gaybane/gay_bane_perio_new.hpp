@@ -255,8 +255,8 @@ void calc_force_gay_bane(double (*x)[dim2], double (*f)[dim], int (*list)[Nn],
         }
 }
 
-static constexpr int Mx = Lx / (cut * gay_kappa + skin);
-static constexpr int My = Ly / (cut * gay_kappa + skin);
+static constexpr int Mx = Lx / (cut + gay_kappa-1 + skin);
+static constexpr int My = Ly / (cut + gay_kappa-1 + skin);
 inline int           peri_cell_x(int m) {
     if (m < 0)
         return m + Mx;
